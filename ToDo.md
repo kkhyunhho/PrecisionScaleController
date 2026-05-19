@@ -674,6 +674,6 @@ response (menu is misconfigured for Approach A).
       new features alongside the existing ID queries — runs cal +
       single stable read + first stream yield, supersedes the
       original "main.py stays as the ID demo" design decision
-- [ ] Commit and push
-- [ ] Open PR per §15.2
+- [x] Commit and push (a2ec578)
+- [x] Open PR per §15.2 (#9)
 - [ ] GitHub issue update on merge
