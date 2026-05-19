@@ -676,4 +676,15 @@ response (menu is misconfigured for Approach A).
       original "main.py stays as the ID demo" design decision
 - [x] Commit and push (a2ec578)
 - [x] Open PR per §15.2 (#9)
+- [x] Scope addition (user 2026-05-19): bump `CAL_TIMEOUT_S`
+      60 s → 90 s and render an elapsed/total progress bar on
+      stderr from inside `calibrate_internal_very_unstable`
+      (e.g. `[##########..........] 45/90 s`). Bar updates once
+      per poll iteration via carriage return; final newline
+      emitted on both success and timeout via try/finally so the
+      bar never hangs without a line break. Library-internal
+      output per user direction.
+- [x] Ruff check + format pass on the patched module
+- [ ] Commit and push onto `feature/cal-and-stable-read`
+- [ ] Update PR #9 with a comment reflecting the new scope
 - [ ] GitHub issue update on merge

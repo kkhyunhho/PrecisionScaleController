@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import re
+import sys
 import time
 from collections.abc import Iterator
 from types import TracebackType
@@ -95,8 +96,12 @@ class PrecisionScaleController:
 
     # Timing knobs for the calibration polling loop and stable read.
     CAL_POLL_INTERVAL_S: ClassVar[float] = 1.0
-    CAL_TIMEOUT_S: ClassVar[float] = 60.0
+    CAL_TIMEOUT_S: ClassVar[float] = 90.0
     STABLE_READ_TIMEOUT_S: ClassVar[float] = 30.0
+
+    # Width (chars) of the elapsed/total progress bar rendered to
+    # stderr during ``calibrate_internal_very_unstable``.
+    CAL_PROGRESS_BAR_WIDTH: ClassVar[int] = 20
 
     # Parse one signed decimal weight + unit anywhere in an SBI line.
     # Covers both the 16-char and 22-char (ID-coded) output formats —
@@ -303,6 +308,10 @@ class PrecisionScaleController:
         called; the post-calibration reading is returned so the caller
         can verify the zero baseline.
 
+        While polling, an elapsed/total progress bar is written to
+        ``sys.stderr`` once per poll iteration and finalized with a
+        newline on both the success and timeout paths.
+
         Args:
             timeout: Maximum seconds to wait for calibration to
                 complete. Default ``CAL_TIMEOUT_S``.
@@ -324,23 +333,58 @@ class PrecisionScaleController:
         self._send_command(self.CMD_AMBIENT_VERY_UNSTABLE)
         self._send_command(self.CMD_INTERNAL_CAL)
 
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            time.sleep(poll_interval)
-            self._send_command(self.CMD_PRINT_KEY)
-            try:
-                line = self._read_response(timeout=poll_interval * 2)
-            except TimeoutError:
-                continue
-            try:
-                return self._parse_weight_line(line)
-            except ValueError:
-                # Cal.Run. / Cal.End / Stat / unit-less post-cal — not
-                # done yet. Keep polling for the next response.
-                continue
+        start = time.monotonic()
+        deadline = start + timeout
+        try:
+            while time.monotonic() < deadline:
+                time.sleep(poll_interval)
+                self._render_cal_progress(time.monotonic() - start, timeout)
+                self._send_command(self.CMD_PRINT_KEY)
+                try:
+                    line = self._read_response(timeout=poll_interval * 2)
+                except TimeoutError:
+                    continue
+                try:
+                    reading = self._parse_weight_line(line)
+                except ValueError:
+                    # Cal.Run. / Cal.End / Stat / unit-less post-cal —
+                    # not done yet. Keep polling for the next response.
+                    continue
+                # Pin the bar to 100% before the trailing newline so
+                # the final on-screen state matches the success.
+                self._render_cal_progress(timeout, timeout)
+                return reading
+        finally:
+            # Always close the carriage-return line so subsequent
+            # log output starts on a fresh line — covers success,
+            # timeout, and any unexpected raise from inside the loop.
+            sys.stderr.write("\n")
+            sys.stderr.flush()
         raise TimeoutError(
             f"internal calibration did not complete within {timeout}s"
         )
+
+    def _render_cal_progress(
+        self,
+        elapsed: float,
+        total: float,
+    ) -> None:
+        """Render the calibration progress bar to stderr in-place.
+
+        Writes one carriage-returned line of the form
+        ``  [##########..........] 45/90 s`` and flushes. The caller
+        is responsible for emitting the final newline once polling
+        finishes.
+        """
+        # Clamp so the bar never overshoots when the loop is about to
+        # exit on the timeout boundary.
+        clamped = max(0.0, min(elapsed, total))
+        ratio = clamped / total if total > 0 else 1.0
+        filled = int(ratio * self.CAL_PROGRESS_BAR_WIDTH)
+        empty = self.CAL_PROGRESS_BAR_WIDTH - filled
+        bar = "#" * filled + "." * empty
+        sys.stderr.write(f"\r  [{bar}] {int(clamped):2d}/{int(total):2d} s")
+        sys.stderr.flush()
 
     def read_stable_weight(
         self,
