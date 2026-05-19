@@ -6,6 +6,11 @@ ambient forced to "very unstable", a single stable read, and then a
 continuous stable-weight stream that prints each new value until
 Ctrl-C. Auto-detects the port by Sartorius USB vendor ID 0x24bc.
 
+The continuous stream relies on :meth:`stream_stable_weights`, which
+applies the library-level jitter + rising-guard filters by default
+(see ``JITTER_THRESHOLD`` / ``RISING_WINDOW`` / ``RISING_THRESHOLD``
+on ``PrecisionScaleController``).
+
 The pan must be empty when this runs (the calibration step requires
 it). For a flag-driven CLI see ``entris_ii.cli.diagnose`` (read-only)
 and ``entris_ii.cli.measure`` (cal/read/watch). For narrower
@@ -61,9 +66,9 @@ def main() -> int:
             f"(raw {single.raw!r})"
         )
 
-        # 4. Continuous stable-weight stream — prints each new
-        #    value as the balance reading changes (exact-float
-        #    dedup inside the generator). Press Ctrl-C to stop.
+        # 4. Continuous stable-weight stream. The generator already
+        #    applies the jitter + rising-guard filters; main.py
+        #    just prints whatever it yields. Press Ctrl-C to stop.
         print("Streaming stable weights; press Ctrl-C to stop.")
         try:
             for reading in scale.stream_stable_weights():

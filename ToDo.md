@@ -714,4 +714,25 @@ response (menu is misconfigured for Approach A).
       the loop. Append a LearnedPatterns §3 entry for the quirk
       (LP §Q4). Ruff pass, commit on `feature/cal-and-stable-read`,
       note on PR #9.
+- [ ] Follow-up tweak (user 2026-05-19): apply two output filters
+      to `stream_stable_weights` inside the library
+      (`src/entris_ii/precision_scale_controller.py`), not at the
+      demo layer:
+      1) jitter — drop readings whose absolute change vs. the last
+      *emitted* value is below 0.001 (`JITTER_THRESHOLD`);
+      2) rising guard — keep a rolling window of the last 5
+      jitter-passing readings, and only emit the current reading
+      when `current - min(window) < 0.05` (`RISING_THRESHOLD`,
+      tightened from the initially proposed 0.1 per user).
+      Expose all three knobs as keyword arguments on
+      `stream_stable_weights` with class-constant defaults so the
+      CLI `measure watch` and `main.py` benefit by default while
+      callers can still override. `main.py` reverts to a plain
+      stream consumer. Ruff pass, commit on
+      `feature/cal-and-stable-read`, note on PR #9.
+- [x] Final tweak (user 2026-05-19): `RISING_THRESHOLD` lowered
+      from 0.1 to 0.05 to wait for a tighter steady state before
+      emitting. Confirmed via the mocked-stream smoke test —
+      the 0.2001 reading that previously emitted under 0.1 is now
+      held until the value settles closer to 0.21.
 - [ ] GitHub issue update on merge

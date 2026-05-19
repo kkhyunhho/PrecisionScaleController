@@ -24,6 +24,7 @@ import logging
 import re
 import sys
 import time
+from collections import deque
 from collections.abc import Iterator
 from types import TracebackType
 from typing import ClassVar, NamedTuple, Self
@@ -102,6 +103,19 @@ class PrecisionScaleController:
     # Width (chars) of the elapsed/total progress bar rendered to
     # stderr during ``calibrate_internal_very_unstable``.
     CAL_PROGRESS_BAR_WIDTH: ClassVar[int] = 20
+
+    # Default filter knobs applied by ``stream_stable_weights``.
+    # ``JITTER_THRESHOLD`` suppresses readings whose absolute change
+    # from the last emitted value is below this band. ``RISING_*``
+    # implement a still-rising guard: once the rolling window of the
+    # last ``RISING_WINDOW`` readings is full, the current reading is
+    # held back while ``current - min(window) >= RISING_THRESHOLD``,
+    # i.e. the balance is still meaningfully climbing. Pass
+    # ``jitter_threshold=0`` or ``rising_window=0`` on the call to
+    # opt out per-call.
+    JITTER_THRESHOLD: ClassVar[float] = 0.001
+    RISING_WINDOW: ClassVar[int] = 5
+    RISING_THRESHOLD: ClassVar[float] = 0.05
 
     # Parse one signed decimal weight + unit anywhere in an SBI line.
     # Covers both the 16-char and 22-char (ID-coded) output formats —
@@ -462,30 +476,53 @@ class PrecisionScaleController:
         self,
         timeout: float = STABLE_READ_TIMEOUT_S,
         interval: float = 0.1,
+        jitter_threshold: float = JITTER_THRESHOLD,
+        rising_window: int = RISING_WINDOW,
+        rising_threshold: float = RISING_THRESHOLD,
     ) -> Iterator[WeightReading]:
-        """Yield each new stable weight as the value changes.
+        """Yield each new stable weight, with jitter + rising filters.
 
-        Repeatedly calls :meth:`read_stable_weight`, yielding only
-        when the parsed ``value`` differs from the previously yielded
-        value (exact float equality). The loop runs until the caller
-        breaks out — typically by ``KeyboardInterrupt`` at the CLI.
+        Repeatedly calls :meth:`read_stable_weight`. Two filters
+        decide whether a reading is yielded:
 
-        Once the balance is stable at the same value, each ``Esc kP``
-        round-trip completes immediately, so a non-zero ``interval``
-        is required to keep the loop from spinning hot when no value
-        change is happening.
+        * **Jitter** — readings whose absolute change vs. the last
+          *yielded* value is below ``jitter_threshold`` are dropped.
+          Pass ``0`` to fall back to exact-float deduplication only.
+        * **Rising guard** — a rolling window of the last
+          ``rising_window`` *jitter-passing* readings is kept; while
+          the window is full and
+          ``current - min(window) >= rising_threshold`` the current
+          reading is held back as still-climbing. Pass
+          ``rising_window=0`` to disable.
+
+        Transient ``ValueError`` from :meth:`_parse_weight_line` is
+        logged at debug level and skipped so a one-off non-numeric
+        SBI line (``Stat``, overload markers, or the unit-less
+        ID-coded shape) never tears down the loop.
 
         Args:
             timeout: Per-read timeout in seconds.
-            interval: Sleep in seconds between consecutive
-                ``read_stable_weight`` calls when no value change is
-                observed.
+            interval: Sleep between consecutive
+                :meth:`read_stable_weight` calls. A non-zero value
+                keeps the loop from spinning hot once the balance
+                has settled at the same reading.
+            jitter_threshold: Inclusive lower bound on the change
+                magnitude required for emission. Defaults to
+                :attr:`JITTER_THRESHOLD`.
+            rising_window: Size of the rolling history used by the
+                rising guard. ``0`` disables the guard. Defaults to
+                :attr:`RISING_WINDOW`.
+            rising_threshold: Increase versus ``min(window)`` that
+                marks the value as still climbing. Defaults to
+                :attr:`RISING_THRESHOLD`.
 
         Yields:
-            ``WeightReading`` instances whose ``value`` differs from
-            the last one yielded.
+            ``WeightReading`` instances that survive both filters.
         """
-        last_value: float | None = None
+        last_yielded: float | None = None
+        recent: deque[float] = deque(
+            maxlen=rising_window if rising_window > 0 else 1
+        )
         while True:
             try:
                 reading = self.read_stable_weight(timeout=timeout)
@@ -499,8 +536,31 @@ class PrecisionScaleController:
                 if interval > 0:
                     time.sleep(interval)
                 continue
-            if last_value is None or reading.value != last_value:
-                yield reading
-                last_value = reading.value
+            val = reading.value
+            # Jitter filter. ``delta == 0.0`` also covers exact-float
+            # duplicates when the caller opts out of the jitter band
+            # with ``jitter_threshold=0``.
+            if last_yielded is not None:
+                delta = abs(val - last_yielded)
+                if delta == 0.0 or delta < jitter_threshold:
+                    if interval > 0:
+                        time.sleep(interval)
+                    continue
+            # Rising guard. Compare to the past window before
+            # appending so the current reading is judged against
+            # history; update the window regardless so the trend
+            # keeps tracking.
+            if rising_window > 0:
+                rising = (
+                    len(recent) == rising_window
+                    and val - min(recent) >= rising_threshold
+                )
+                recent.append(val)
+                if rising:
+                    if interval > 0:
+                        time.sleep(interval)
+                    continue
+            yield reading
+            last_yielded = val
             if interval > 0:
                 time.sleep(interval)
