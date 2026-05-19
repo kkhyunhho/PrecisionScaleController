@@ -417,3 +417,33 @@ already conforms.
 ### PR audit note
 Only PR #23 exists at this time and was authored to the new
 conventions from the start. No retroactive PR edits required.
+
+---
+
+## Rename to PrecisionScaleController and apply CLAUDE.md /init improvements
+
+### Background
+User direction 2026-05-19: pivot this repo from a pure conventions
+repository to the PrecisionScaleController project (Sartorius Entris-II
+scale controller). The repo will be published as a new GitHub repo
+named `PrecisionScaleController`. At the same time, apply the eight
+self-init improvements surfaced by `/init`:
+1. Fix broken `CommonClaude.md` self-references (file does not exist).
+2. Update Overview to reflect the ScaleController project pivot.
+3. Add a top-level Commands section.
+4. Mark CLAUDE.md §10 Bootstrap as satisfied (LearnedPatterns.md exists).
+5. Surface `jq` as a required system package in Environment.
+6. Document the `env` block in `.claude/settings.json`.
+7. Cross-link Stop-hook enforcement to §4 to remove duplication.
+8. Add a Files index near the Overview.
+
+### Work items
+- [x] Append this ToDo.md entry
+- [x] Cut working branch `docs/rename-and-init-improvements`
+- [x] Apply eight CLAUDE.md improvements
+- [x] Update README.md (broken references, project rename)
+- [x] Stage explicit paths and commit (LP §W4)
+- [x] Create new GitHub repo `PrecisionScaleController`
+- [x] Retarget `origin` to the new repo and push
+- [x] GitHub issue register and PR open
+- [x] GitHub issue update on merge

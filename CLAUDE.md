@@ -4,17 +4,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This is a conventions repository that defines project-wide standards for Claude Code sessions. The primary artifact is `CommonClaude.md`.
+This repository is the **PrecisionScaleController** project — software for controlling a Sartorius Entris-II precision balance. It also carries the project-wide Claude Code conventions originally inherited from CommonClaude; this `CLAUDE.md` is the canonical ruleset (there is no separate `CommonClaude.md`).
+
+## Files in this repo
+
+| Path | Purpose |
+|---|---|
+| [`CLAUDE.md`](CLAUDE.md) | This file — full rules and workflow (§1–§17) |
+| [`ToDo.md`](ToDo.md) | Append-only cumulative task log (§4) |
+| [`LearnedPatterns.md`](LearnedPatterns.md) | Patterns extracted from completed tasks (§9) |
+| [`README.md`](README.md) | Public-facing summary of conventions |
+| [`ruff.toml`](ruff.toml) | Ruff lint/format config (80-col, 4-space, E/F/W/I/N) |
+| [`.claude/`](.claude/) | Hooks (`hooks/`) and harness config (`settings.json`) |
+| `*.pdf` (root) | Sartorius Entris-II reference material (§7 sources) |
 
 ## Environment
 
 This project runs inside a **Docker container** with [Claude Code](https://claude.ai/code) as the primary development tool.
 
-| Item              | Detail                                         |
-|-------------------|-------------------------------------------------|
-| Runtime           | Docker container (`--privileged`)               |
-| OS                | Ubuntu 24.04 (Noble)                            |
-| Dev tool          | Claude Code (CLI / VS Code extension)           |
+| Item              | Detail                                                              |
+|-------------------|---------------------------------------------------------------------|
+| Runtime           | Docker container (`--privileged`)                                   |
+| OS                | Ubuntu 24.04 (Noble)                                                |
+| Dev tool          | Claude Code (CLI / VS Code extension)                               |
+| Required pkgs     | `jq` (`apt install -y jq`) — hooks no-op without it (see LP §Q1/§E2)|
+
+The harness `env` block lives in [`.claude/settings.json`](.claude/settings.json):
+
+- `MAX_THINKING_TOKENS=10000` — bounds extended-reasoning length per turn
+- `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=50` — triggers context autocompaction at 50%
+
+## Commands
+
+| Purpose                     | Command                                          |
+|-----------------------------|--------------------------------------------------|
+| Lint a Python file          | `ruff check <file>.py`                           |
+| Check formatting            | `ruff format --check <file>.py`                  |
+| Auto-format                 | `ruff format <file>.py`                          |
+| Open / update a task issue  | `gh issue create` / `gh issue edit`              |
+| Open a PR                   | `gh pr create` (template in §15.2)               |
+
+There is no build system, test runner, or package manifest yet — `tests/` and `claude_test/` directories do not exist. Create them on demand per §3 Debug File Management.
 
 ## 1. Rule Priority
 
@@ -139,6 +169,8 @@ Before writing ToDo.md, the following two checks must be performed:
 
 > **Reminder**: Steps 2 (`ToDo.md`), 4 (`gh issue create`), 5 (working branch), and 9 (PR) are **non-negotiable** for any task that touches code or documentation. Every task must have a corresponding `ToDo.md` entry, a GitHub issue, a dedicated branch, and a PR.
 
+> **Enforcement**: The Stop prompt hook configured in [`.claude/settings.json`](.claude/settings.json) blocks session end if a `ToDo.md` entry or matching GitHub issue is missing. A Stop-hook failure is the symptom of skipping Rule 1 or Rule 3 above, not a bug.
+
 ---
 
 ## 5. Testing Rules
@@ -247,6 +279,8 @@ When `LearnedPatterns.md` exists, treat it as part of the workflow. The file cap
 ---
 
 ## 10. Learned Patterns Bootstrap
+
+> **Status (2026-05-19):** Bootstrap satisfied — [`LearnedPatterns.md`](LearnedPatterns.md) already exists with 15 patterns across §1–§5 plus §99. New sessions should follow §9 (Reference) and skip the procedure below unless the file is deleted.
 
 If `LearnedPatterns.md` does not exist in the repository root, generate it by analyzing the `Completed` items in `ToDo.md` using the procedure below. Once the file exists, this bootstrap procedure no longer applies — consult the file directly.
 

@@ -1,8 +1,8 @@
-# CommonClaude
+# PrecisionScaleController
 
-**Project-wide conventions for all Claude Code sessions**
+**Sartorius Entris-II precision balance controller — with project-wide Claude Code conventions**
 
-This repository defines the rules and workflows that every [Claude Code](https://claude.ai/code) session must follow. The core document is [`CommonClaude.md`](CommonClaude.md).
+This repository hosts the PrecisionScaleController project together with the rules and workflows every [Claude Code](https://claude.ai/code) session in it must follow. The canonical ruleset lives in [`CLAUDE.md`](CLAUDE.md) (no separate `CommonClaude.md` file).
 
 ---
 
@@ -112,37 +112,21 @@ Configuration lives in [`.claude/settings.json`](.claude/settings.json), and the
 
 ---
 
-## Cowork Session Rules (`CLAUDECowork.md`)
+## Hardware Reference
 
-[`CLAUDECowork.md`](CLAUDECowork.md) defines rules specific to the Cowork workspace session.
+Sartorius Entris-II datasheets and manuals are checked in at the repository root and serve as §7 ("Research Before Coding") sources:
 
-### Expense Report Preparation
-
-Rules for writing research expense reports under `서류 작업/`:
-- Extract item names, quantities, amounts, and dates from transaction statements, quotes, and card receipts (PDF)
-- Fields to update: date, amount (formatted as `"315,000 원"`), usage details (`"{item} 외 {count}건"`)
-- Protected fields (names, budget codes, affiliations) must not be changed
-- Verify against source PDFs after completion, then back up to the designated archive path
-
-### ToDo Workflow
-
-- Write a new entry in `ToDo.md` **before** starting any task (append only, never delete)
-- Get user approval before executing
-- Check off items as they are completed; keep all history intact
-
-### Mail Reply Rules
-
-- Use `DocumentMailReply.md` as the reply template
-- Replace the `{friendly name}` placeholder with the sender's first name
-- Always show the draft to the user and get approval **before** sending
+- `Entris-II-Essential-Datasheet-en-L-Sartorius.pdf`
+- `entris-ii-technical-note-en-sartorius.pdf`
+- `manual-entris-bce-precisionbalances-wbc6001bo-pdf-62843--data.pdf`
 
 ---
 
 ## References
 
-- Full rules: [`CommonClaude.md`](CommonClaude.md)
-- Cowork rules: [`CLAUDECowork.md`](CLAUDECowork.md)
-- Debug file index: [`claude_test/README.md`](claude_test/README.md)
+- Full rules: [`CLAUDE.md`](CLAUDE.md)
+- Learned patterns: [`LearnedPatterns.md`](LearnedPatterns.md)
+- Cumulative task log: [`ToDo.md`](ToDo.md)
 - [ClaudeCode for vscode](https://code.claude.com/docs/en/vs-code#extension-settings)
 - [클로드 코드를 활용한 바이브 코딩 완벽입문](https://product.kyobobook.co.kr/detail/S000219349783)
-- [한 걸음 앞선 개발자가 지금 꼭 알아야할 클로드 코드](https://product.kyobobook.co.kr/detail/S000217402731)  
+- [한 걸음 앞선 개발자가 지금 꼭 알아야할 클로드 코드](https://product.kyobobook.co.kr/detail/S000217402731)
