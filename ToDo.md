@@ -447,3 +447,45 @@ self-init improvements surfaced by `/init`:
 - [x] Retarget `origin` to the new repo and push
 - [x] GitHub issue register and PR open
 - [x] GitHub issue update on merge
+
+---
+
+## Scaffold PrecisionScaleController package (entris_ii)
+
+### Background
+Lay down the package skeleton modeled on
+[coport-uni/SyringePumpController](https://github.com/coport-uni/SyringePumpController)
+before any SBI implementation lands. Directory layout, package name,
+and entry-point shape are decided in this step; concrete commands
+ship in a follow-up ToDo entry.
+
+### Design decisions (user 2026-05-19)
+- Mirror SyringePumpController package layout, deferring
+  `pyproject.toml`, `tests/`, `DESIGN.md`, and CI to later iterations.
+- Package name `entris_ii` — device-model lowercase, matches the
+  `sy01b` precedent.
+- Class file `precision_scale_controller.py` (snake_case of class).
+- Entry point `main.py` at repo root for end-to-end demo.
+- `claude_test/` scripts use `sys.path.insert(0, "src")`; no install.
+- Dependency: `requirements.txt` with `pyserial>=3.5`.
+- `cli/` subpackage deferred — added when a second command lands.
+- Scaffold = empty modules with one-line docstring; no function
+  bodies in this commit. Hardware verification deferred to the
+  follow-up implementation task per user direction.
+
+### Work items
+- [x] Append this ToDo entry
+- [x] Cut working branch `chore/scaffold-entris-ii`
+- [x] Create `requirements.txt` (`pyserial>=3.5`)
+- [x] Create `src/entris_ii/__init__.py` (re-export stub)
+- [x] Create `src/entris_ii/precision_scale_controller.py`
+      (class stub with docstring)
+- [x] Create `main.py` (entry stub with docstring + sys.path setup)
+- [x] Create `claude_test/README.md` (index table header)
+- [x] Create `claude_test/test_read_id.py` (stub with docstring +
+      sys.path setup)
+- [x] Ruff check + format pass on all `.py` files (§6)
+- [x] GitHub issue register (#3)
+- [ ] Commit and push
+- [ ] Open PR per §15.2
+- [ ] GitHub issue update on merge
