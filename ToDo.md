@@ -539,6 +539,6 @@ References:
       ID-code format
 - [x] Update `claude_test/README.md` Findings column
 - [x] GitHub issue register (#5)
-- [ ] Commit and push
-- [ ] Open PR per §15.2
+- [x] Commit and push (cdf5c5d)
+- [x] Open PR per §15.2 (#6)
 - [ ] GitHub issue update on merge
