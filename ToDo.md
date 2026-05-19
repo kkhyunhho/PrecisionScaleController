@@ -741,4 +741,40 @@ response (menu is misconfigured for Approach A).
       calibration block re-enabled (previously commented out
       during streaming-only experiments) so the end-to-end demo
       again exercises cal → stable read → stream.
+- [x] GitHub issue update on merge (closed via "Closes #8" footer
+      in PR #9; merge commit 7a39d5d on main)
+
+---
+
+## Task #10 (2026-05-19): SBI intro in README + small post-merge tuning
+
+Reorient the project README for a newcomer to balance/SBI work,
+and clear two trailing post-merge items. GitHub issue #10, branch
+`docs/sbi-intro-readme` cut from main at 7a39d5d.
+
+References:
+- [`entris-ii-technical-note-en-sartorius.pdf`](entris-ii-technical-note-en-sartorius.pdf)
+  for the SBI command/response framing and special markers.
+- LearnedPatterns §Q3 (`Esc Z` vs `Esc x0_`) and §Q4 (unit-less
+  ID-coded response form) — both feed the protocol primer.
+
+### Work items
+- [x] Append this ToDo entry
+- [x] Create GitHub issue (#10)
+- [x] Cut working branch `docs/sbi-intro-readme` from main
+- [x] Commit pending working-tree edit `CAL_TIMEOUT_S` 120 → 180
+      as a standalone `chore(cal)` commit (acc9b87)
+- [x] Update `README.md`:
+      1) add a short "What this project does" + quick-start block;
+      2) add a Mermaid `flowchart` rendering of `main.py`;
+      3) add an SBI protocol primer (serial settings, command
+         framing, Format-1 vs Format-2, the two response shapes
+         incl. LP §Q4 unit-less form, status/error markers,
+         "Manual with stability" menu requirement);
+      4) add a brief package-layout pointer.
+- [x] Flip the `[ ] GitHub issue update on merge` checkbox on the
+      Task #8 entry
+- [ ] Commit the README + ToDo updates separately from the
+      `CAL_TIMEOUT_S` commit
+- [ ] Push and open PR per §15.2 (closes #10)
 - [ ] GitHub issue update on merge
