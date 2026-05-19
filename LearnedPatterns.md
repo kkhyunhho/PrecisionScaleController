@@ -3,7 +3,7 @@
 > Patterns extracted from `ToDo.md` Completed items. Consult the relevant sections before drafting new ToDo entries. Append new patterns after each task completes (see CLAUDE.md §9 Learned Patterns Reference).
 >
 > Last updated: 2026-05-19
-> Total patterns: 16
+> Total patterns: 17
 >
 > Provenance format: `(from ToDo#N)` where N is the 1-based index of the top-level `##` section in `ToDo.md` at the time of extraction.
 
@@ -67,6 +67,13 @@
 - **Cause**: The hook scans the full Bash `command` string before execution, including everything inside `<<'EOF' ... EOF` blocks.
 - **Fix**: Describe credential patterns with wildcards or obfuscated variants (for example `sk-*`, `ghp_*`) in Bash payloads. Keep literal test strings confined to file content written via Write or Edit.
 - **Rule**: Never embed literal credential prefixes in Bash command strings; such strings are safe only in files written via Write/Edit. (from ToDo#6)
+
+### Q3. Sartorius SBI Format-1 `Esc Z` opens cal menu but does not execute
+
+- **Problem**: Calibration command `Esc Z` ("Perform internal adjustment", Format 1) caused the BCE224I-1SKR to display `Stat Cal.Int.` and wait for confirmation indefinitely. `Esc kP` polling returned `Stat Cal.Int.` and (after polling resumed) `Stat Cal.Run.` but the procedure never produced a post-cal weight.
+- **Cause**: On this Entris-II model, Format-1 `Esc Z` only opens the internal-cal *menu* (the same screen the front-panel CAL key opens) and waits for user confirmation. The PDF "Commands (Data Input Format)" table lists both `Z` (Format 1) and `x0_` (Format 2) under footnote ¹⁾ "only for balances with internal weight" but does not explain that they have different effects.
+- **Fix**: Use Format-2 `Esc x0_` ("Internal calibration") to actually trigger the procedure. Cal completes in ~15 s on an empty pan; polling traverses `Stat Cal.Run.` → `Stat Cal.End` → a few unit-less drift values (e.g. `G   -   0.0007`) → the final unit-bearing zero (`G         0.0000 g`).
+- **Rule**: Always use Format-2 `Esc x0_` for SBI-driven internal calibration on Entris-II. Treat Format-1 `Esc Z` as a "show menu" command, not an execute command. (from ToDo#21)
 
 ---
 

@@ -5,23 +5,45 @@ its USB-C virtual COM port, modelled on the SyringePumpController
 pattern. SBI ASCII protocol per the Entris II Technical Note
 "Commands (Data Input Format)" section.
 
-This iteration ships the two read-only ID commands: model number
-(``Esc x1_``) and serial number (``Esc x2_``). Write/control commands
-(zero, tare, print, calibrate) are intentionally out of scope here.
+Iteration 2 adds internal calibration with ambient forced to "very
+unstable" (``Esc N`` + ``Esc Z`` with polling) and stable-weight reads
+under the "Manual with stability" printer menu setting — "Approach A"
+in the design notes (``Esc kP``). The original read-only ID commands
+(``Esc x1_``, ``Esc x2_``) from iteration 1 are unchanged.
 
 Hardware assumptions: factory-default USB-C settings per the Entris II
 BCE manual §7.3.4 DEVICE/USB — SBI mode, 9600 baud, ODD parity, 8 data
-bits, 1 stop bit, no handshake.
+bits, 1 stop bit, no handshake. The stable-read and stream behaviours
+additionally require the printer menu (Code 3.1.1.x) set to "Manual
+with stability" so the balance buffers each print until stable.
 """
 
 from __future__ import annotations
 
 import logging
+import re
+import time
+from collections.abc import Iterator
 from types import TracebackType
-from typing import ClassVar, Self
+from typing import ClassVar, NamedTuple, Self
 
 import serial
 import serial.tools.list_ports
+
+
+class WeightReading(NamedTuple):
+    """One parsed weight measurement from an SBI print response.
+
+    Attributes:
+        value: Signed numeric weight parsed from the SBI line.
+        unit: Unit symbol exactly as the balance returned it
+            (typically ``'g'`` on the BCE224I).
+        raw: The full stripped SBI line for downstream inspection.
+    """
+
+    value: float
+    unit: str
+    raw: str
 
 
 class PrecisionScaleController:
@@ -48,9 +70,21 @@ class PrecisionScaleController:
     CR: ClassVar[bytes] = b"\r"
     LF: ClassVar[bytes] = b"\n"
 
+    # Format-1 single/short command characters (Technical Note, commands table).
+    CMD_AMBIENT_VERY_UNSTABLE: ClassVar[bytes] = b"N"
+    CMD_PRINT_KEY: ClassVar[bytes] = b"kP"
+    CMD_CANCEL: ClassVar[bytes] = b"s3_"
+
     # Format-2 command characters (Technical Note, commands table).
+    CMD_INTERNAL_CAL: ClassVar[bytes] = b"x0_"
     CMD_MODEL_NUMBER: ClassVar[bytes] = b"x1_"
     CMD_SERIAL_NUMBER: ClassVar[bytes] = b"x2_"
+
+    # Note: Format-1 ``Esc Z`` ("Perform internal adjustment") only
+    # opens the internal-cal menu on the BCE224I — it shows
+    # ``Stat Cal.Int.`` on the display and waits for confirmation
+    # rather than executing. Format-2 ``Esc x0_`` actually runs the
+    # procedure, so that is what ``CMD_INTERNAL_CAL`` points to.
 
     # Factory-default USB-C SBI parameters (Manual §7.3.4 DEVICE/USB).
     DEFAULT_BAUDRATE: ClassVar[int] = 9600
@@ -58,6 +92,24 @@ class PrecisionScaleController:
     DEFAULT_BYTESIZE: ClassVar[int] = serial.EIGHTBITS
     DEFAULT_STOPBITS: ClassVar[float] = serial.STOPBITS_ONE
     DEFAULT_TIMEOUT_S: ClassVar[float] = 2.0
+
+    # Timing knobs for the calibration polling loop and stable read.
+    CAL_POLL_INTERVAL_S: ClassVar[float] = 1.0
+    CAL_TIMEOUT_S: ClassVar[float] = 60.0
+    STABLE_READ_TIMEOUT_S: ClassVar[float] = 30.0
+
+    # Parse one signed decimal weight + unit anywhere in an SBI line.
+    # Covers both the 16-char and 22-char (ID-coded) output formats —
+    # the leading ID label (e.g. "N") never contains a sign-prefixed
+    # decimal followed by a unit, so the search is unambiguous.
+    _WEIGHT_RE: ClassVar[re.Pattern[str]] = re.compile(
+        r"([+-]?)\s*(\d+(?:\.\d+)?)\s+([a-zA-Z]+)"
+    )
+
+    # Error markers per Technical Note "Error Codes" tables.
+    _ERROR_RE: ClassVar[re.Pattern[str]] = re.compile(
+        r"\b(?:Err\s*\d+|APP\.ERR|DIS\.ERR|PRT\.ERR)\b"
+    )
 
     @classmethod
     def find_port(cls) -> str | None:
@@ -152,8 +204,14 @@ class PrecisionScaleController:
         self._serial.write(frame)
         self._serial.flush()
 
-    def _read_response(self) -> str:
+    def _read_response(self, timeout: float | None = None) -> str:
         """Read one CR-LF terminated SBI response, stripped.
+
+        Args:
+            timeout: Optional one-shot override of the port's read
+                timeout (seconds). The previous timeout is restored on
+                return regardless of outcome. When ``None`` the port's
+                configured timeout is used.
 
         Returns:
             The decoded response with trailing CR/LF and surrounding
@@ -161,18 +219,59 @@ class PrecisionScaleController:
 
         Raises:
             RuntimeError: If the port is not open.
-            TimeoutError: If CR-LF is not observed within the
-                configured timeout.
+            TimeoutError: If CR-LF is not observed before the read
+                window expires.
         """
         if self._serial is None or not self._serial.is_open:
             raise RuntimeError("Serial port is not open")
-        line = self._serial.read_until(self.CR + self.LF)
+        if timeout is None:
+            line = self._serial.read_until(self.CR + self.LF)
+            effective = self.timeout
+        else:
+            saved = self._serial.timeout
+            try:
+                self._serial.timeout = timeout
+                line = self._serial.read_until(self.CR + self.LF)
+            finally:
+                self._serial.timeout = saved
+            effective = timeout
         if not line.endswith(self.CR + self.LF):
             raise TimeoutError(
-                f"no CR-LF within {self.timeout}s; partial={line!r}"
+                f"no CR-LF within {effective}s; partial={line!r}"
             )
         self._log.debug("SBI rx: %r", line)
         return line.rstrip(b"\r\n").decode("ascii", errors="replace").strip()
+
+    @classmethod
+    def _parse_weight_line(cls, line: str) -> WeightReading:
+        """Parse one SBI print response into a ``WeightReading``.
+
+        Args:
+            line: One stripped SBI response line (either the 16-char
+                or 22-char ID-coded form).
+
+        Returns:
+            ``WeightReading(value, unit, raw=line)`` for a numeric
+            weight reply.
+
+        Raises:
+            RuntimeError: If the line carries an SBI error marker
+                (``Err###``, ``APP.ERR``, ``DIS.ERR``, ``PRT.ERR``).
+            ValueError: If the line is not parseable as a weight —
+                e.g. ``Cal.Ext.`` (cal in progress), ``Stat``
+                (unstable; menu misconfigured for Approach A),
+                ``High`` (overload) or ``Low`` (underload).
+        """
+        if cls._ERROR_RE.search(line):
+            raise RuntimeError(f"balance error response: {line!r}")
+        match = cls._WEIGHT_RE.search(line)
+        if match is None:
+            raise ValueError(
+                f"non-numeric SBI response (special/unstable): {line!r}"
+            )
+        sign, digits, unit = match.groups()
+        value = float(f"{sign or '+'}{digits}")
+        return WeightReading(value=value, unit=unit, raw=line)
 
     def get_model_number(self) -> str:
         """Return the balance model number via SBI ``Esc x1_``."""
@@ -183,3 +282,127 @@ class PrecisionScaleController:
         """Return the balance serial number via SBI ``Esc x2_``."""
         self._send_command(self.CMD_SERIAL_NUMBER)
         return self._read_response()
+
+    def calibrate_internal_very_unstable(
+        self,
+        timeout: float = CAL_TIMEOUT_S,
+        poll_interval: float = CAL_POLL_INTERVAL_S,
+    ) -> WeightReading:
+        """Run internal calibration with ambient forced to very unstable.
+
+        Sequence:
+            1. ``Esc s3_`` (CANCEL) clears any leftover menu state.
+            2. ``Esc N`` sets ambient conditions to "very unstable".
+            3. ``Esc x0_`` triggers the internal calibration cycle.
+            4. ``Esc kP`` is polled until a numeric weight response
+               returns (``Cal.Run.`` / ``Cal.End`` / unit-less interim
+               readings are treated as in-progress).
+
+        The balance must carry the internal calibration weight option
+        (e.g. ``BCE224I-1SKR``). The pan must be empty when this is
+        called; the post-calibration reading is returned so the caller
+        can verify the zero baseline.
+
+        Args:
+            timeout: Maximum seconds to wait for calibration to
+                complete. Default ``CAL_TIMEOUT_S``.
+            poll_interval: Seconds between ``Esc kP`` polls. Default
+                ``CAL_POLL_INTERVAL_S``.
+
+        Returns:
+            The first parseable ``WeightReading`` (with unit) observed
+            after the calibration finishes.
+
+        Raises:
+            TimeoutError: If no parseable weight response is observed
+                within ``timeout`` seconds.
+            RuntimeError: If the balance returns an error code during
+                polling.
+        """
+        self._send_command(self.CMD_CANCEL)
+        time.sleep(poll_interval)
+        self._send_command(self.CMD_AMBIENT_VERY_UNSTABLE)
+        self._send_command(self.CMD_INTERNAL_CAL)
+
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            time.sleep(poll_interval)
+            self._send_command(self.CMD_PRINT_KEY)
+            try:
+                line = self._read_response(timeout=poll_interval * 2)
+            except TimeoutError:
+                continue
+            try:
+                return self._parse_weight_line(line)
+            except ValueError:
+                # Cal.Run. / Cal.End / Stat / unit-less post-cal — not
+                # done yet. Keep polling for the next response.
+                continue
+        raise TimeoutError(
+            f"internal calibration did not complete within {timeout}s"
+        )
+
+    def read_stable_weight(
+        self,
+        timeout: float = STABLE_READ_TIMEOUT_S,
+    ) -> WeightReading:
+        """Read one stable weight value (Approach A).
+
+        Sends ``Esc kP`` and reads one SBI response. Approach A assumes
+        the printer menu (Code 3.1.1.x) is set to "Manual with
+        stability" so the balance buffers the print until the reading
+        stabilizes.
+
+        Args:
+            timeout: Read timeout in seconds. Default
+                ``STABLE_READ_TIMEOUT_S``.
+
+        Returns:
+            The parsed ``WeightReading``.
+
+        Raises:
+            TimeoutError: If no response arrives within ``timeout``.
+            ValueError: If the response is non-numeric — a ``Stat``
+                prefix here indicates the menu is misconfigured for
+                Approach A.
+            RuntimeError: If the response carries an SBI error code.
+        """
+        self._send_command(self.CMD_PRINT_KEY)
+        line = self._read_response(timeout=timeout)
+        return self._parse_weight_line(line)
+
+    def stream_stable_weights(
+        self,
+        timeout: float = STABLE_READ_TIMEOUT_S,
+        interval: float = 0.1,
+    ) -> Iterator[WeightReading]:
+        """Yield each new stable weight as the value changes.
+
+        Repeatedly calls :meth:`read_stable_weight`, yielding only
+        when the parsed ``value`` differs from the previously yielded
+        value (exact float equality). The loop runs until the caller
+        breaks out — typically by ``KeyboardInterrupt`` at the CLI.
+
+        Once the balance is stable at the same value, each ``Esc kP``
+        round-trip completes immediately, so a non-zero ``interval``
+        is required to keep the loop from spinning hot when no value
+        change is happening.
+
+        Args:
+            timeout: Per-read timeout in seconds.
+            interval: Sleep in seconds between consecutive
+                ``read_stable_weight`` calls when no value change is
+                observed.
+
+        Yields:
+            ``WeightReading`` instances whose ``value`` differs from
+            the last one yielded.
+        """
+        last_value: float | None = None
+        while True:
+            reading = self.read_stable_weight(timeout=timeout)
+            if last_value is None or reading.value != last_value:
+                yield reading
+                last_value = reading.value
+            if interval > 0:
+                time.sleep(interval)

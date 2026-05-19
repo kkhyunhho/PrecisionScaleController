@@ -541,7 +541,7 @@ References:
 - [x] GitHub issue register (#5)
 - [x] Commit and push (cdf5c5d)
 - [x] Open PR per §15.2 (#6)
-- [ ] GitHub issue update on merge
+- [x] GitHub issue update on merge (auto-closed by `Closes #5` in PR #6, merge ea43d8a)
 
 ---
 
@@ -581,5 +581,99 @@ module. The refactor lands as additional commits on the same
       same readout (`Model  BCE224I-1SKR` / `SerNo.    0047304196`);
       `-v` confirmed SBI tx `\x1bx1_\r\n` / `\x1bx2_\r\n`
 - [x] Commit and push (081c562, lands on PR #6)
-- [ ] Comment on PR #6 noting the scope addition
+- [x] Comment on PR #6 noting the scope addition
+- [x] GitHub issue update on merge (auto-closed by `Closes #7` added to PR #6 body, merge ea43d8a)
+
+---
+
+## Implement internal calibration (very-unstable mode) and stable weight read (entris_ii)
+
+### Background
+Second runtime increment for PrecisionScaleController. Adds two SBI
+behaviours requested by user 2026-05-19, plus a streaming extension
+clarified during ToDo review:
+
+1. Internal calibration triggered with ambient conditions forced to
+   "very unstable", to be executed when nothing rests on the pan.
+2. Stable-weight read assuming the balance menu is configured for
+   "Manual with stability" output (Approach A); the controller just
+   sends the print command and reads the (already-stable) response.
+3. Stable-weight stream: a generator and matching `watch` CLI
+   subcommand that polls the stable read in a loop and emits each
+   new stable value once (exact-float dedup), stopping only on
+   Ctrl-C.
+
+References:
+- [`entris-ii-technical-note-en-sartorius.pdf`](entris-ii-technical-note-en-sartorius.pdf)
+  Commands (Data Input Format): Format-1 `Esc N` (ambient: very
+  unstable), `Esc Z` (perform internal adjustment — only for
+  balances with internal weight), `Esc kP` (Key PRINT to all
+  interfaces). Special Codes `Cal.Ext.`, `Stat`. Error codes
+  `Err###`, `APP.ERR`, `DIS.ERR`, `PRT.ERR`.
+- 22-char ID-code output format already observed in PR #6 hardware
+  run (`Model  BCE224I-1SKR` — the `I-1S` suffix denotes the
+  internal-weight option, so internal calibration is supported).
+
+### Design decisions (user 2026-05-19)
+- Branch base: `feature/cal-and-stable-read` cut from `main` after
+  PR #6 merged (ea43d8a).
+- Function 1 wait strategy: polling. After `Esc N` + `Esc Z`, poll
+  `Esc kP` every `CAL_POLL_INTERVAL_S` until a non-`Cal.Ext.`,
+  non-error weight response returns or `CAL_TIMEOUT_S` elapses.
+- Function 2 return type: `WeightReading` NamedTuple with `.value`
+  (float), `.unit` (str), `.raw` (str). Both parsed view and the raw
+  SBI line are accessible.
+- Stream dedup: exact float equality (`value != last_value`). No
+  epsilon, no automatic stop condition — Ctrl-C only.
+- CLI: new `src/entris_ii/cli/measure.py` (separate from
+  `diagnose.py`, which is documented as never moving/zeroing/cal'ing).
+  Subcommands `cal`, `read`, `watch`. Auto-detect port by Sartorius
+  VID; `--port` override; `-v` verbose mirrors `diagnose`.
+- `main.py` stays as the ID demo — no changes this PR.
+- Internal helper: extend `_read_response` with an optional per-call
+  `timeout` override so polling and stable-wait can use longer read
+  windows without permanently bumping `self.timeout`.
+
+### Approach A precondition (Function 2 and stream)
+The balance menu must be configured to "Manual with stability"
+(printer setting Code 3.1.1.x — factory default is `IND.NO`, manual
+without stability). When configured this way, the balance buffers the
+print request internally until the reading stabilizes and then emits
+the value, so the controller only needs to send `Esc kP` and read one
+line. The CLI prints a warning if a `Stat` prefix is observed in the
+response (menu is misconfigured for Approach A).
+
+### Work items
+- [x] Append this ToDo entry
+- [x] Create GitHub issue (#8)
+- [x] Cut working branch `feature/cal-and-stable-read` from main
+- [x] Add SBI command constants
+      (`CMD_AMBIENT_VERY_UNSTABLE`, `CMD_INTERNAL_CAL`,
+      `CMD_PRINT_KEY`, `CMD_CANCEL`)
+- [x] Add `WeightReading` NamedTuple and `_parse_weight_line` helper
+- [x] Extend `_read_response` with an optional per-call `timeout`
+- [x] Implement `calibrate_internal_very_unstable(timeout)`
+- [x] Implement `read_stable_weight(timeout)`
+- [x] Implement `stream_stable_weights()` generator (with `interval`
+      sleep to avoid hot-spinning when the stable value is unchanged)
+- [x] Create `src/entris_ii/cli/measure.py` with `cal`, `read`,
+      `watch` subcommands
+- [x] Re-export `WeightReading` from `src/entris_ii/__init__.py`
+- [x] Add `claude_test/test_cal_and_read.py` smoke script
+- [x] Update `claude_test/README.md` index row
+- [x] Ruff check + format pass
+- [x] **Hardware verify** — passed on `/dev/ttyACM0` (BCE224I-1SKR):
+      cal completed in ~15 s with `Esc s3_` → `Esc N` → `Esc x0_` and
+      `Esc kP` polling; post-cal value `+0.0000 g`; single
+      `read_stable_weight` `+0.0000 g`; `stream_stable_weights` first
+      yield `+0.0000 g` at +0.40 s, 16 subsequent reads over 8 s all
+      `0.0` — no further yields
+- [x] Append LearnedPatterns §Q3 — `Esc Z` opens cal menu only;
+      `Esc x0_` is what actually executes internal calibration
+- [x] Scope addition (user 2026-05-19): extend `main.py` to demo the
+      new features alongside the existing ID queries — runs cal +
+      single stable read + first stream yield, supersedes the
+      original "main.py stays as the ID demo" design decision
+- [ ] Commit and push
+- [ ] Open PR per §15.2
 - [ ] GitHub issue update on merge
