@@ -2,8 +2,8 @@
 
 > Patterns extracted from `ToDo.md` Completed items. Consult the relevant sections before drafting new ToDo entries. Append new patterns after each task completes (see CLAUDE.md §9 Learned Patterns Reference).
 >
-> Last updated: 2026-04-22
-> Total patterns: 15
+> Last updated: 2026-05-19
+> Total patterns: 16
 >
 > Provenance format: `(from ToDo#N)` where N is the 1-based index of the top-level `##` section in `ToDo.md` at the time of extraction.
 
@@ -115,6 +115,11 @@
 
 - **Note**: Hooks are invoked from arbitrary working directories, so absolute paths must be derived from `$CLAUDE_PROJECT_DIR`.
 - **Rule**: Never hardcode a repo path in hook scripts; always reference `$CLAUDE_PROJECT_DIR`. (from ToDo#2)
+
+### E4. Ubuntu 24.04 base image lacks `ruff`
+
+- **Note**: CLAUDE.md §6 mandates `ruff check` and `ruff format --check` before every commit, but the base image ships without `ruff`. Commands fail with `ruff: command not found` on first attempt.
+- **Rule**: Always verify `ruff` availability before the first Python edit; install via `pip3 install --break-system-packages ruff` (PEP 668 override is required on Ubuntu 24.04+ system Python). (from ToDo#15)
 
 ---
 

@@ -488,4 +488,57 @@ ship in a follow-up ToDo entry.
 - [x] GitHub issue register (#3)
 - [x] Commit and push (7e9185d)
 - [x] Open PR per §15.2 (#4)
+- [x] GitHub issue update on merge (PR #4 merged as 222e856)
+
+---
+
+## Implement PrecisionScaleController read-only ID commands (entris_ii)
+
+### Background
+First runtime behaviour for PrecisionScaleController. Implements the
+two factory-default read-only SBI commands and verifies them against
+a real Sartorius Entris-II balance over USB-C. Builds on PR #4
+scaffold (merged to main as 222e856).
+
+References:
+- [`entris-ii-technical-note-en-sartorius.pdf`](entris-ii-technical-note-en-sartorius.pdf)
+  "Commands (Data Input Format)" — Format 2 `Esc x1_` / `Esc x2_`.
+- [`manual-entris-bce-precisionbalances-wbc6001bo-pdf-62843--data.pdf`](manual-entris-bce-precisionbalances-wbc6001bo-pdf-62843--data.pdf)
+  §7.3.4 DEVICE/USB — factory defaults: SBI, 9600 baud, ODD parity,
+  8 data bits, 1 stop bit, no handshake.
+
+### Hardware probe (2026-05-19, pre-task)
+| Item | Value |
+|---|---|
+| Port | `/dev/ttyACM0` |
+| VID:PID | `0x24bc:0x0010` (Sartorius) |
+| Manufacturer | `Sartorius` |
+| Product | `Sartorius Composite device` |
+
+### Design decisions (user 2026-05-19)
+- Class-level constants: `UPPER_CASE` + `ClassVar` per
+  SyringePumpController precedent.
+- Class requires explicit `port` argument; auto-detection via
+  Sartorius VID `0x24bc` lives in `test_read_id.py` and `main.py`,
+  with a manual `--port` override.
+- LP §E4 (ruff missing from base image) bundled into this PR.
+
+### Work items
+- [x] Append this ToDo entry
+- [x] Cut working branch `feature/sbi-readonly-id`
+- [x] Install `pyserial` via `pip3 install --break-system-packages`
+- [x] Implement `PrecisionScaleController` class
+- [x] Wire `src/entris_ii/__init__.py` re-export
+- [x] Implement `claude_test/test_read_id.py` (auto-detect by
+      Sartorius VID, `--port` override)
+- [x] Implement `main.py` (calls both methods, prints results)
+- [x] Add LP §E4 — "Ubuntu 24.04 base image lacks `ruff`"
+- [x] Ruff check + format pass
+- [x] **Hardware verify** — passed on `/dev/ttyACM0`; balance returned
+      `'Model  BCE224I-1SKR'` and `'SerNo.    0047304196'` in 22-char
+      ID-code format
+- [x] Update `claude_test/README.md` Findings column
+- [x] GitHub issue register (#5)
+- [ ] Commit and push
+- [ ] Open PR per §15.2
 - [ ] GitHub issue update on merge
