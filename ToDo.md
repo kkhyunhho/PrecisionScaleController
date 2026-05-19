@@ -355,3 +355,30 @@ Tracked under issue #21.
 - [x] GitHub issue register (#21)
 - [ ] Commit and push
 - [ ] GitHub issue update
+
+---
+
+## CLAUDE.md §11–§17 — Embed GitConvention.md Git workflow rules
+
+### Background
+User organized Git/GitHub workflow rules (Conventional Commits,
+GitHub Flow, .gitignore, SemVer, PR guidelines, pre-commit
+automation) in a new `GitConvention.md`. Embed the full content
+into `CLAUDE.md` as §11–§17 so Claude has a single, complete
+instruction set, and extend `§4 Task Management` workflow to
+include branch-creation and PR-creation steps. Approved plan:
+`/root/.claude/plans/github-pr-shiny-dahl.md` (2026-05-19).
+
+### Work items
+- [x] Apply Change A: expand §4 Workflow to 10 steps and extend
+      the non-negotiable Reminder line
+- [x] Apply Change B: append §11–§17 (Commit Messages, Branching,
+      .gitignore, Versioning, PR Guidelines, Git Automation,
+      References) with editorial adjustments — drop closing
+      italic, dedupe MIT CommLab row in §17, add §2 Language
+      cross-ref line at the top of §11
+- [x] Verify §1–§17 numbering and internal `§N.M` cross-refs;
+      confirm no contradiction with §2 Language or §6 Linting
+- [x] GitHub issue register (#22)
+- [ ] Commit and push
+- [ ] GitHub issue update
