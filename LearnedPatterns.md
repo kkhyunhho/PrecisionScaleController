@@ -75,6 +75,13 @@
 - **Fix**: Use Format-2 `Esc x0_` ("Internal calibration") to actually trigger the procedure. Cal completes in ~15 s on an empty pan; polling traverses `Stat Cal.Run.` → `Stat Cal.End` → a few unit-less drift values (e.g. `G   -   0.0007`) → the final unit-bearing zero (`G         0.0000 g`).
 - **Rule**: Always use Format-2 `Esc x0_` for SBI-driven internal calibration on Entris-II. Treat Format-1 `Esc Z` as a "show menu" command, not an execute command. (from ToDo#21)
 
+### Q4. Sartorius SBI emits unit-less ID-coded lines during normal operation
+
+- **Problem**: `stream_stable_weights` crashed with `ValueError: non-numeric SBI response (special/unstable): 'G         0.0000'` on hardware. The initial `read_stable_weight` succeeded, then subsequent stream reads occasionally returned ID-coded lines with no trailing unit field, which the unit-suffixed-only regex could not parse.
+- **Cause**: The BCE224I sometimes emits the 16-char ID-coded form `<ID-label> <signed-value>` without a unit suffix even after `Cal.End` — not only as a brief drift line during internal calibration (already covered by Q3) but also intermittently during normal Approach-A stable reads. The original `_WEIGHT_RE` only matched `<value> <unit>`, so any unit-less line raised `ValueError` and propagated up through `read_stable_weight` into the generator.
+- **Fix**: Added a `_WEIGHT_RE_ID_NO_UNIT` fallback regex (`<id-label> <signed-numeric>`, unit defaults to `""`) and a `_STATUS_PREFIX_RE` so unstable/overload/underload markers (`Stat` / `H` / `High` / `L` / `Low`) still raise `ValueError` even when followed by a numeric placeholder. `stream_stable_weights` additionally catches `ValueError` and logs the skip at debug level so a transient non-numeric line never kills the loop.
+- **Rule**: Always accept the unit-less ID-coded SBI shape as a valid weight reading (with `unit=""`), and always make long-running SBI streams tolerant of transient `ValueError` from the parser. Never let status-prefixed lines (`Stat`, `H`, `L`) slip through the no-unit fallback. (from ToDo#28)
+
 ---
 
 ## §4. Workflow Lessons

@@ -702,4 +702,16 @@ response (menu is misconfigured for Approach A).
       as a live readout. Update the module docstring to match.
       Ruff pass, commit on `feature/cal-and-stable-read`, note on
       PR #9.
+- [x] Bug fix (user 2026-05-19): hardware emits ID-coded SBI lines
+      without a trailing unit (e.g. `'G         0.0000'`), which
+      the current `_WEIGHT_RE` cannot parse and crashes
+      `stream_stable_weights` with `ValueError`. Extend the parser
+      with a fallback regex for `<id-label> <signed-value>` form
+      (unit defaults to `""`), explicitly reject `Stat` / `H` /
+      `L` / `High` / `Low` status prefixes via a new
+      `_STATUS_PREFIX_RE`, and have `stream_stable_weights` swallow
+      `ValueError` so transient non-numeric lines no longer kill
+      the loop. Append a LearnedPatterns §3 entry for the quirk
+      (LP §Q4). Ruff pass, commit on `feature/cal-and-stable-read`,
+      note on PR #9.
 - [ ] GitHub issue update on merge

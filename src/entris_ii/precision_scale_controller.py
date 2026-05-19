@@ -111,6 +111,28 @@ class PrecisionScaleController:
         r"([+-]?)\s*(\d+(?:\.\d+)?)\s+([a-zA-Z]+)"
     )
 
+    # Fallback for ID-coded lines emitted without a trailing unit,
+    # e.g. ``'G         0.0000'`` observed on the BCE224I when the
+    # balance prints the gross-weight ID label but omits the unit
+    # field. Matches ``<id-label> <signed-numeric>`` with optional
+    # trailing whitespace; the ID label is letters/digits/``#``.
+    # Used only when ``_WEIGHT_RE`` misses, so unit-suffixed lines
+    # continue to take the primary path.
+    _WEIGHT_RE_ID_NO_UNIT: ClassVar[re.Pattern[str]] = re.compile(
+        r"^([A-Za-z][A-Za-z0-9#]*)\s+"
+        r"([+-]?)\s*(\d+(?:\.\d+)?)\s*$"
+    )
+
+    # Leading markers that indicate a status (not a real weight).
+    # ``Stat`` is the explicit unstable indicator; ``H``/``High`` and
+    # ``L``/``Low`` flag over- and under-load. These must raise
+    # ``ValueError`` even when a numeric placeholder follows them,
+    # otherwise the no-unit fallback above would silently treat an
+    # unstable or out-of-range reading as a valid weight.
+    _STATUS_PREFIX_RE: ClassVar[re.Pattern[str]] = re.compile(
+        r"^(?:Stat|High|Low|H|L)\b"
+    )
+
     # Error markers per Technical Note "Error Codes" tables.
     _ERROR_RE: ClassVar[re.Pattern[str]] = re.compile(
         r"\b(?:Err\s*\d+|APP\.ERR|DIS\.ERR|PRT\.ERR)\b"
@@ -251,9 +273,21 @@ class PrecisionScaleController:
     def _parse_weight_line(cls, line: str) -> WeightReading:
         """Parse one SBI print response into a ``WeightReading``.
 
+        Two response shapes are accepted:
+
+        * Standard 16-char and 22-char forms with a trailing unit
+          (e.g. ``'+    0.0000 g'`` or ``'N       0.0000 g'``).
+        * ID-coded form without a trailing unit observed on the
+          BCE224I (e.g. ``'G         0.0000'``). The returned
+          ``unit`` is an empty string in this case so callers can
+          still tell that no unit was reported.
+
+        Lines whose leading marker is ``Stat`` (unstable), ``H`` /
+        ``High`` (overload), or ``L`` / ``Low`` (underload) raise
+        ``ValueError`` even when a numeric placeholder follows them.
+
         Args:
-            line: One stripped SBI response line (either the 16-char
-                or 22-char ID-coded form).
+            line: One stripped SBI response line.
 
         Returns:
             ``WeightReading(value, unit, raw=line)`` for a numeric
@@ -269,12 +303,21 @@ class PrecisionScaleController:
         """
         if cls._ERROR_RE.search(line):
             raise RuntimeError(f"balance error response: {line!r}")
-        match = cls._WEIGHT_RE.search(line)
-        if match is None:
+        if cls._STATUS_PREFIX_RE.match(line):
             raise ValueError(
                 f"non-numeric SBI response (special/unstable): {line!r}"
             )
-        sign, digits, unit = match.groups()
+        match = cls._WEIGHT_RE.search(line)
+        if match is not None:
+            sign, digits, unit = match.groups()
+        else:
+            id_match = cls._WEIGHT_RE_ID_NO_UNIT.match(line)
+            if id_match is None:
+                raise ValueError(
+                    f"non-numeric SBI response (special/unstable): {line!r}"
+                )
+            _, sign, digits = id_match.groups()
+            unit = ""
         value = float(f"{sign or '+'}{digits}")
         return WeightReading(value=value, unit=unit, raw=line)
 
@@ -444,7 +487,18 @@ class PrecisionScaleController:
         """
         last_value: float | None = None
         while True:
-            reading = self.read_stable_weight(timeout=timeout)
+            try:
+                reading = self.read_stable_weight(timeout=timeout)
+            except ValueError as exc:
+                # Transient non-numeric responses (``Stat``, overload,
+                # or other unstable markers) should not kill the
+                # stream — surface them at debug level and keep going
+                # so the caller observes liveness on the next stable
+                # tick.
+                self._log.debug("skipping non-numeric SBI line: %s", exc)
+                if interval > 0:
+                    time.sleep(interval)
+                continue
             if last_value is None or reading.value != last_value:
                 yield reading
                 last_value = reading.value
