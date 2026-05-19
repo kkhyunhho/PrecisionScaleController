@@ -1,17 +1,16 @@
-"""End-to-end demo for PrecisionScaleController.
+"""End-to-end demo of PrecisionScaleController read-only ID commands.
 
-Run from the repo root::
+Reads the model number and serial number from a Sartorius Entris-II
+balance over USB-C SBI and prints them. Auto-detects the port by
+Sartorius USB vendor ID 0x24bc.
 
-    python main.py [--port /dev/ttyACM0] [--verbose]
-
-Auto-detects the Sartorius Entris-II by USB vendor ID ``0x24bc`` when
-``--port`` is omitted; falls back to the explicit device path
-otherwise.
+For a CLI with --port and --verbose flags, see
+``entris_ii.cli.diagnose``. For narrower per-feature bench scripts,
+see ``claude_test/``.
 """
 
 from __future__ import annotations
 
-import argparse
 import logging
 import sys
 from pathlib import Path
@@ -24,44 +23,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 from entris_ii import PrecisionScaleController  # noqa: E402
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Read model and serial number from a Sartorius Entris-II "
-            "balance over USB-C SBI."
-        ),
-    )
-    parser.add_argument(
-        "--port",
-        default=None,
-        help=(
-            "Serial device path (e.g., /dev/ttyACM0). "
-            "Default: auto-detect by Sartorius VID 0x24bc."
-        ),
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Enable SBI tx/rx debug logging.",
-    )
-    args = parser.parse_args(argv)
-
+def main() -> int:
     logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
+        level=logging.INFO,
         format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
         stream=sys.stderr,
     )
 
-    port = args.port or PrecisionScaleController.find_port()
+    port = PrecisionScaleController.find_port()
     if port is None:
-        print(
-            "error: no Sartorius device detected; pass --port",
-            file=sys.stderr,
-        )
+        print("error: no Sartorius device detected", file=sys.stderr)
         return 2
 
     print(f"Using port: {port}")
     with PrecisionScaleController(port=port) as scale:
+        # 1. Read-only identity queries (Esc x1_, Esc x2_).
         print(f"Model number:  {scale.get_model_number()}")
         print(f"Serial number: {scale.get_serial_number()}")
     return 0

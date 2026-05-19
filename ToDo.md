@@ -542,3 +542,44 @@ References:
 - [x] Commit and push (cdf5c5d)
 - [x] Open PR per §15.2 (#6)
 - [ ] GitHub issue update on merge
+
+---
+
+## Refactor: extract CLI from main.py to entris_ii.cli (continues #5)
+
+### Background
+User direction 2026-05-19 after PR #6 was opened: `main.py` mixes the
+end-to-end demo with argparse plumbing, which does not match the
+SyringePumpController layout. Split the CLI surface into a
+`entris_ii.cli` subpackage (parallel to `sy01b.cli`) so `main.py`
+becomes a hard-coded demo and the parser logic lives in a dedicated
+module. The refactor lands as additional commits on the same
+`feature/sbi-readonly-id` branch and the same PR #6.
+
+### Design decisions (user 2026-05-19)
+- `main.py` is a no-argparse end-to-end demo with hard-coded sensible
+  defaults (auto-detect port, INFO logging, run both ID queries).
+- CLI lives at `src/entris_ii/cli/diagnose.py`, mirroring
+  `sy01b/cli/diagnose.py`.
+- `entris_ii.cli.diagnose` is invoked as a package module
+  (`PYTHONPATH=src python -m entris_ii.cli.diagnose`); no sys.path
+  manipulation inside the module.
+- `claude_test/test_read_id.py` keeps its own argparse — it is a
+  self-contained smoke script (CLAUDE.md §8 allows looseness in
+  `claude_test/`).
+
+### Work items
+- [x] Append this ToDo entry
+- [x] Create GitHub issue (#7)
+- [x] Strip argparse from `main.py`
+- [x] Create `src/entris_ii/cli/__init__.py`
+- [x] Create `src/entris_ii/cli/diagnose.py` with `_build_parser` +
+      `main(argv)` mirroring the `sy01b.cli.diagnose` pattern
+- [x] Ruff check + format pass
+- [x] **Hardware verify** — both `python main.py` and
+      `PYTHONPATH=src python -m entris_ii.cli.diagnose` returned the
+      same readout (`Model  BCE224I-1SKR` / `SerNo.    0047304196`);
+      `-v` confirmed SBI tx `\x1bx1_\r\n` / `\x1bx2_\r\n`
+- [ ] Commit and push (lands on PR #6)
+- [ ] Comment on PR #6 noting the scope addition
+- [ ] GitHub issue update on merge
