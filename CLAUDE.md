@@ -130,11 +130,14 @@ Before writing ToDo.md, the following two checks must be performed:
 2. Once validated, organize the task list in `ToDo.md`.
 3. Get the user's confirmation on the `ToDo.md` contents.
 4. Once confirmed, create a GitHub issue via `gh issue create`.
-5. Check off completed items in `ToDo.md` as work progresses.
-6. Update the GitHub issue via `gh issue edit` for completed items.
-7. **Commit and push** changes after every user command is completed.
+5. Cut a working branch from `main` using `<type>/<short-description>` naming (see §12.2).
+6. Check off completed items in `ToDo.md` as work progresses; every commit follows the Conventional Commits format (see §11).
+7. Update the GitHub issue via `gh issue edit` for completed items.
+8. Push the branch to remote.
+9. After work is complete, open a PR via `gh pr create` using the template in §15.2.
+10. After the PR is merged, delete the local branch.
 
-> **Reminder**: Steps 2 (`ToDo.md`) and 4 (`gh issue create`) are **non-negotiable**. Every task must have a corresponding `ToDo.md` entry and a GitHub issue before any work begins.
+> **Reminder**: Steps 2 (`ToDo.md`), 4 (`gh issue create`), 5 (working branch), and 9 (PR) are **non-negotiable** for any task that touches code or documentation. Every task must have a corresponding `ToDo.md` entry, a GitHub issue, a dedicated branch, and a PR.
 
 ---
 
@@ -270,3 +273,345 @@ If `LearnedPatterns.md` does not exist in the repository root, generate it by an
 - **Create `LearnedPatterns.md` as a new file** in the repository root. Do not inline patterns into `ToDo.md` or `CLAUDE.md`.
 - **Do not invent patterns.** When a ToDo item is ambiguous, place it under §99 rather than guessing.
 - **Write all content in English**, consistent with §2 Language rule.
+
+---
+
+## 11. Commit Messages
+
+Follow the **Conventional Commits** specification. The English-only rule for commit messages, PR titles, and PR bodies follows §2 Language.
+
+### 11.1 Format
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+### 11.2 Types
+
+| Type | Purpose |
+|---|---|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `refactor` | Code restructuring without behavior change |
+| `docs` | Documentation only |
+| `test` | Adding or modifying tests |
+| `chore` | Build config, .gitignore, etc. |
+| `style` | Formatting only (no behavior change) |
+| `perf` | Performance improvement |
+
+### 11.3 Rules
+
+- Description in **imperative mood**: "Add", "Fix" (NOT "Added", "Fixed")
+- Subject line **under 50 characters**
+- **No period** at the end of the subject line
+- Wrap body at 72 characters
+- Body explains **"what and why"** (the code shows "how")
+- Keep scope short and focused on the affected area (e.g., `parser`, `core`, `build`)
+
+### 11.4 Examples
+
+```
+feat(parser): add JSON config loader in Python
+
+Adds JSON format support alongside the existing INI files.
+Uses only the standard library — no external dependencies.
+```
+
+```
+fix(core): prevent buffer overflow in tokenize()
+```
+
+```
+chore(build): update Makefile for new module
+```
+
+### 11.5 Breaking Changes
+
+Mark backward-incompatible changes with `!` or a footer:
+
+```
+feat(api)!: change return type of parse() to dict
+
+BREAKING CHANGE: parse() previously returned a tuple;
+it now returns a dict.
+```
+
+> **Source**: [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)
+
+---
+
+## 12. Branching Strategy
+
+Adopt **GitHub Flow** — a lightweight single-main-branch strategy.
+
+### 12.1 Principles
+
+- `main` is **always in a deployable state**
+- Work happens on **separate branches** cut from `main`
+- Changes are merged into `main` via **Pull Requests**
+- **Delete branches after merging**
+- **Open PRs even when working solo** (for self-review and history tracking)
+
+### 12.2 Branch Naming
+
+```
+<type>/<short-description>
+```
+
+Examples:
+- `feature/csv-parser`
+- `feature/python-bindings`
+- `fix/memory-leak-in-loader`
+- `fix/issue-42`
+- `refactor/error-handling`
+- `docs/api-reference`
+
+### 12.3 Standard Workflow
+
+```bash
+# 1. Get latest main
+git checkout main
+git pull origin main
+
+# 2. Create a working branch
+git checkout -b feature/csv-parser
+
+# 3. Work and commit
+git add .
+git commit -m "feat(parser): add CSV reader"
+
+# 4. Push to remote
+git push origin feature/csv-parser
+
+# 5. Open a PR on GitHub → review → merge
+
+# 6. Clean up locally after merge
+git checkout main
+git pull origin main
+git branch -d feature/csv-parser
+```
+
+> **Source**: [GitHub Flow Documentation](https://docs.github.com/en/get-started/using-github/github-flow)
+
+---
+
+## 13. .gitignore
+
+Cover both C and Python. Combine GitHub's official templates.
+
+### 13.1 Base Template
+
+```gitignore
+# ===== C =====
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+*.out
+*.app
+*.dSYM/
+build/
+bin/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ===== Editor / OS =====
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ===== Secrets =====
+.env
+.env.local
+*.key
+*.pem
+```
+
+### 13.2 Global .gitignore
+
+Keep OS/editor-specific files in a personal `~/.gitignore_global`:
+
+```bash
+git config --global core.excludesfile ~/.gitignore_global
+```
+
+> **Sources**:
+> - [GitHub Official .gitignore Template (C)](https://github.com/github/gitignore/blob/main/C.gitignore)
+> - [GitHub Official .gitignore Template (Python)](https://github.com/github/gitignore/blob/main/Python.gitignore)
+
+---
+
+## 14. Versioning
+
+Follow **Semantic Versioning (SemVer)**.
+
+### 14.1 Format
+
+```
+MAJOR.MINOR.PATCH
+```
+
+| Component | When to increment |
+|---|---|
+| **MAJOR** | Backward-incompatible changes |
+| **MINOR** | Backward-compatible new features |
+| **PATCH** | Backward-compatible bug fixes |
+
+### 14.2 Mapping to Conventional Commits
+
+- `fix:` → **PATCH** bump
+- `feat:` → **MINOR** bump
+- `BREAKING CHANGE` → **MAJOR** bump
+
+### 14.3 Tagging
+
+```bash
+# Create an annotated tag (recommended)
+git tag -a v0.1.0 -m "Initial release"
+
+# Push the tag
+git push origin v0.1.0
+
+# Push all tags
+git push origin --tags
+```
+
+### 14.4 Initial Development
+
+- `0.y.z` is for initial development — the public API is considered unstable
+- The first stable release should be `1.0.0`
+
+> **Source**: [Semantic Versioning 2.0.0](https://semver.org/)
+
+---
+
+## 15. Pull Request Guidelines
+
+### 15.1 Title
+
+Use the same Conventional Commits format as commit messages:
+
+```
+feat(parser): add JSON config loader
+```
+
+### 15.2 Description Template
+
+```markdown
+## Changes
+- Brief summary of what changed
+
+## Why
+- Motivation behind the change
+
+## Testing
+- How the change was verified (added tests, manual testing, etc.)
+
+## Related Issues
+Closes #42
+```
+
+### 15.3 Size
+
+- Keep PRs **under 400 lines** when possible (for effective review)
+- Split large changes into multiple PRs
+
+---
+
+## 16. Git Automation (Optional)
+
+Use **pre-commit** for automated style checks and formatting.
+
+### 16.1 Installation
+
+```bash
+pip install pre-commit
+```
+
+### 16.2 Example `.pre-commit-config.yaml`
+
+```yaml
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  # Python
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.0
+    hooks:
+      - id: ruff
+      - id: ruff-format
+
+  # C
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v18.1.0
+    hooks:
+      - id: clang-format
+```
+
+### 16.3 Enable Hooks
+
+```bash
+pre-commit install
+```
+
+Checks and formatting will now run automatically on `git commit`.
+
+> **Source**: [pre-commit Documentation](https://pre-commit.com/)
+
+---
+
+## 17. References (Git Convention)
+
+### Primary Sources (Specifications / Official Docs)
+
+| Item | URL |
+|---|---|
+| Conventional Commits | https://www.conventionalcommits.org/ |
+| GitHub Flow | https://docs.github.com/en/get-started/using-github/github-flow |
+| Semantic Versioning | https://semver.org/ |
+| GitHub .gitignore Templates | https://github.com/github/gitignore |
+| pre-commit | https://pre-commit.com/ |
+
+### Learning Resources
+
+| Resource | URL |
+|---|---|
+| Pro Git (free book) | https://git-scm.com/book/en/v2 |
+| MIT Missing Semester — Version Control | https://missing.csail.mit.edu/2020/version-control/ |
+| Oh Shit, Git!?! (recovery guide) | https://ohshitgit.com/ |
+| Learn Git Branching (interactive) | https://learngitbranching.js.org/ |
+
+### Commit Message Writing Guides
+
+| Resource | URL |
+|---|---|
+| Tim Pope, "A Note About Git Commit Messages" | https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html |
+| Chris Beams, "How to Write a Git Commit Message" | https://cbea.ms/git-commit/ |
