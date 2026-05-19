@@ -96,7 +96,7 @@ class PrecisionScaleController:
 
     # Timing knobs for the calibration polling loop and stable read.
     CAL_POLL_INTERVAL_S: ClassVar[float] = 1.0
-    CAL_TIMEOUT_S: ClassVar[float] = 90.0
+    CAL_TIMEOUT_S: ClassVar[float] = 120.0
     STABLE_READ_TIMEOUT_S: ClassVar[float] = 30.0
 
     # Width (chars) of the elapsed/total progress bar rendered to

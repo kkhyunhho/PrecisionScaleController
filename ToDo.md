@@ -685,6 +685,13 @@ response (menu is misconfigured for Approach A).
       bar never hangs without a line break. Library-internal
       output per user direction.
 - [x] Ruff check + format pass on the patched module
-- [ ] Commit and push onto `feature/cal-and-stable-read`
-- [ ] Update PR #9 with a comment reflecting the new scope
+- [x] Commit and push onto `feature/cal-and-stable-read` (4d3d1d8)
+- [x] Update PR #9 with a comment reflecting the new scope
+      (PR #9 comment 4488064721)
+- [x] Follow-up tweak (user 2026-05-19): hardware test showed the
+      90 s budget still gets exceeded, so bump `CAL_TIMEOUT_S`
+      90 s → 120 s. Progress-bar denominator and clamp follow the
+      new value automatically (no further code change required
+      beyond the constant). Ruff pass, commit on
+      `feature/cal-and-stable-read`, note on PR #9.
 - [ ] GitHub issue update on merge
