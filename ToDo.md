@@ -382,3 +382,38 @@ include branch-creation and PR-creation steps. Approved plan:
 - [x] GitHub issue register (#22)
 - [x] Commit and push (c09781f, PR #23)
 - [x] GitHub issue update — closure pending PR #23 merge
+
+---
+
+## Audit past GitHub issues per new CLAUDE.md §11/§15 rules
+
+### Background
+User direction 2026-05-19: now that §11 (Conventional Commits) and
+§15 (Pull Request Guidelines) live in `CLAUDE.md`, retroactively
+reformat issues #1–#21 to follow the new conventions. Issue #22
+already conforms.
+
+### Scope
+- Title: reformat to `<type>(<scope>): <description>` per §11.
+- Korean issues (#1, #2, #3 — title or body): translate to English
+  per §2 Language.
+- Body: align to §15.2 template — Changes / Why / Testing /
+  Related Issues — preserving existing content where it fits.
+
+### Execution
+- Bundled into PR #23 per LP §W2 (low-risk, adjacent scope,
+  pre-approved together by user follow-up).
+- No new branch; work continues on `docs/embed-git-convention`.
+
+### Work items
+- [x] Draft proposed (title, body) for each of #1–#21
+      (preserved at `/tmp/audit-proposal.md` during execution)
+- [x] Present batch for user approval (approved 2026-05-19)
+- [x] Apply via `gh issue edit` per issue (#1–#21 all updated)
+- [x] GitHub issue register (audit meta-issue #24)
+- [x] Commit ToDo.md updates and push (bundled into PR #23)
+- [x] GitHub issue update — #24 to be closed via PR #23 merge
+
+### PR audit note
+Only PR #23 exists at this time and was authored to the new
+conventions from the start. No retroactive PR edits required.
