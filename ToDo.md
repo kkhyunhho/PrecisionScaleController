@@ -488,4 +488,98 @@ ship in a follow-up ToDo entry.
 - [x] GitHub issue register (#3)
 - [x] Commit and push (7e9185d)
 - [x] Open PR per §15.2 (#4)
+- [x] GitHub issue update on merge (PR #4 merged as 222e856)
+
+---
+
+## Implement PrecisionScaleController read-only ID commands (entris_ii)
+
+### Background
+First runtime behaviour for PrecisionScaleController. Implements the
+two factory-default read-only SBI commands and verifies them against
+a real Sartorius Entris-II balance over USB-C. Builds on PR #4
+scaffold (merged to main as 222e856).
+
+References:
+- [`entris-ii-technical-note-en-sartorius.pdf`](entris-ii-technical-note-en-sartorius.pdf)
+  "Commands (Data Input Format)" — Format 2 `Esc x1_` / `Esc x2_`.
+- [`manual-entris-bce-precisionbalances-wbc6001bo-pdf-62843--data.pdf`](manual-entris-bce-precisionbalances-wbc6001bo-pdf-62843--data.pdf)
+  §7.3.4 DEVICE/USB — factory defaults: SBI, 9600 baud, ODD parity,
+  8 data bits, 1 stop bit, no handshake.
+
+### Hardware probe (2026-05-19, pre-task)
+| Item | Value |
+|---|---|
+| Port | `/dev/ttyACM0` |
+| VID:PID | `0x24bc:0x0010` (Sartorius) |
+| Manufacturer | `Sartorius` |
+| Product | `Sartorius Composite device` |
+
+### Design decisions (user 2026-05-19)
+- Class-level constants: `UPPER_CASE` + `ClassVar` per
+  SyringePumpController precedent.
+- Class requires explicit `port` argument; auto-detection via
+  Sartorius VID `0x24bc` lives in `test_read_id.py` and `main.py`,
+  with a manual `--port` override.
+- LP §E4 (ruff missing from base image) bundled into this PR.
+
+### Work items
+- [x] Append this ToDo entry
+- [x] Cut working branch `feature/sbi-readonly-id`
+- [x] Install `pyserial` via `pip3 install --break-system-packages`
+- [x] Implement `PrecisionScaleController` class
+- [x] Wire `src/entris_ii/__init__.py` re-export
+- [x] Implement `claude_test/test_read_id.py` (auto-detect by
+      Sartorius VID, `--port` override)
+- [x] Implement `main.py` (calls both methods, prints results)
+- [x] Add LP §E4 — "Ubuntu 24.04 base image lacks `ruff`"
+- [x] Ruff check + format pass
+- [x] **Hardware verify** — passed on `/dev/ttyACM0`; balance returned
+      `'Model  BCE224I-1SKR'` and `'SerNo.    0047304196'` in 22-char
+      ID-code format
+- [x] Update `claude_test/README.md` Findings column
+- [x] GitHub issue register (#5)
+- [x] Commit and push (cdf5c5d)
+- [x] Open PR per §15.2 (#6)
+- [ ] GitHub issue update on merge
+
+---
+
+## Refactor: extract CLI from main.py to entris_ii.cli (continues #5)
+
+### Background
+User direction 2026-05-19 after PR #6 was opened: `main.py` mixes the
+end-to-end demo with argparse plumbing, which does not match the
+SyringePumpController layout. Split the CLI surface into a
+`entris_ii.cli` subpackage (parallel to `sy01b.cli`) so `main.py`
+becomes a hard-coded demo and the parser logic lives in a dedicated
+module. The refactor lands as additional commits on the same
+`feature/sbi-readonly-id` branch and the same PR #6.
+
+### Design decisions (user 2026-05-19)
+- `main.py` is a no-argparse end-to-end demo with hard-coded sensible
+  defaults (auto-detect port, INFO logging, run both ID queries).
+- CLI lives at `src/entris_ii/cli/diagnose.py`, mirroring
+  `sy01b/cli/diagnose.py`.
+- `entris_ii.cli.diagnose` is invoked as a package module
+  (`PYTHONPATH=src python -m entris_ii.cli.diagnose`); no sys.path
+  manipulation inside the module.
+- `claude_test/test_read_id.py` keeps its own argparse — it is a
+  self-contained smoke script (CLAUDE.md §8 allows looseness in
+  `claude_test/`).
+
+### Work items
+- [x] Append this ToDo entry
+- [x] Create GitHub issue (#7)
+- [x] Strip argparse from `main.py`
+- [x] Create `src/entris_ii/cli/__init__.py`
+- [x] Create `src/entris_ii/cli/diagnose.py` with `_build_parser` +
+      `main(argv)` mirroring the `sy01b.cli.diagnose` pattern
+- [x] Ruff check + format pass
+- [x] **Hardware verify** — both `python main.py` and
+      `PYTHONPATH=src python -m entris_ii.cli.diagnose` returned the
+      same readout (`Model  BCE224I-1SKR` / `SerNo.    0047304196`);
+      `-v` confirmed SBI tx `\x1bx1_\r\n` / `\x1bx2_\r\n`
+- [x] Commit and push (081c562, lands on PR #6)
+- [ ] Comment on PR #6 noting the scope addition
 - [ ] GitHub issue update on merge
