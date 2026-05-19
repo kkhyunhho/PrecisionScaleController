@@ -486,6 +486,6 @@ ship in a follow-up ToDo entry.
       sys.path setup)
 - [x] Ruff check + format pass on all `.py` files (§6)
 - [x] GitHub issue register (#3)
-- [ ] Commit and push
-- [ ] Open PR per §15.2
+- [x] Commit and push (7e9185d)
+- [x] Open PR per §15.2 (#4)
 - [ ] GitHub issue update on merge
