@@ -580,6 +580,6 @@ module. The refactor lands as additional commits on the same
       `PYTHONPATH=src python -m entris_ii.cli.diagnose` returned the
       same readout (`Model  BCE224I-1SKR` / `SerNo.    0047304196`);
       `-v` confirmed SBI tx `\x1bx1_\r\n` / `\x1bx2_\r\n`
-- [ ] Commit and push (lands on PR #6)
+- [x] Commit and push (081c562, lands on PR #6)
 - [ ] Comment on PR #6 noting the scope addition
 - [ ] GitHub issue update on merge
