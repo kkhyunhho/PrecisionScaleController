@@ -52,12 +52,12 @@ def main() -> int:
 
         # 2. Internal calibration with ambient forced to very unstable.
         #    Pan must be empty.
-        # print("Calibrating (ambient: very unstable)…")
-        # post_cal = scale.calibrate_internal_very_unstable()
-        # print(
-        #     f"  post-cal: {post_cal.value:+.4f} {post_cal.unit} "
-        #     f"(raw {post_cal.raw!r})"
-        # )
+        print("Calibrating (ambient: very unstable)…")
+        post_cal = scale.calibrate_internal_very_unstable()
+        print(
+            f"  post-cal: {post_cal.value:+.4f} {post_cal.unit} "
+            f"(raw {post_cal.raw!r})"
+        )
 
         # 3. One stable read.
         single = scale.read_stable_weight()

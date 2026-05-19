@@ -735,4 +735,10 @@ response (menu is misconfigured for Approach A).
       emitting. Confirmed via the mocked-stream smoke test —
       the 0.2001 reading that previously emitted under 0.1 is now
       held until the value settles closer to 0.21.
+- [ ] Final tuning before merge (user 2026-05-19):
+      `JITTER_THRESHOLD` widened 0.001 → 0.01 to suppress
+      hardware-observed wobble at the 0.001-g level; `main.py`
+      calibration block re-enabled (previously commented out
+      during streaming-only experiments) so the end-to-end demo
+      again exercises cal → stable read → stream.
 - [ ] GitHub issue update on merge

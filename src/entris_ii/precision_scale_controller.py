@@ -113,7 +113,7 @@ class PrecisionScaleController:
     # i.e. the balance is still meaningfully climbing. Pass
     # ``jitter_threshold=0`` or ``rising_window=0`` on the call to
     # opt out per-call.
-    JITTER_THRESHOLD: ClassVar[float] = 0.001
+    JITTER_THRESHOLD: ClassVar[float] = 0.01
     RISING_WINDOW: ClassVar[int] = 5
     RISING_THRESHOLD: ClassVar[float] = 0.05
 
