@@ -380,5 +380,5 @@ include branch-creation and PR-creation steps. Approved plan:
 - [x] Verify §1–§17 numbering and internal `§N.M` cross-refs;
       confirm no contradiction with §2 Language or §6 Linting
 - [x] GitHub issue register (#22)
-- [ ] Commit and push
-- [ ] GitHub issue update
+- [x] Commit and push (c09781f, PR #23)
+- [x] GitHub issue update — closure pending PR #23 merge
