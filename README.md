@@ -14,7 +14,7 @@ This repository hosts the PrecisionScaleController project together with the rul
 - Read-only identity queries (model number, serial number).
 - Internal calibration with the "very unstable" ambient hint, plus a live elapsed/total progress bar on stderr.
 - One-shot stable-weight reads.
-- A long-running stable-weight stream that applies jitter and rising-guard filters before yielding each new value.
+- A long-running stable-weight stream that reads the balance's AUTO W/ auto-push output (Approach B) and applies a jitter filter before yielding each new value.
 
 For an end-to-end demo, run [`main.py`](main.py). For flag-driven access there is also a CLI: `entris_ii.cli.diagnose` (read-only) and `entris_ii.cli.measure` (cal / read / watch).
 
@@ -159,7 +159,7 @@ Operators changing these menus should do so once at setup time; the balance pers
 
 ### Putting it together
 
-A typical session looks like this on the wire:
+A typical session looks like this on the wire. Note that the calibration phase still uses `Esc kP` polling to fetch `Cal.Run.` / `Cal.End` progress markers, but the stable-read phase is fully passive — under `COM.OUTP = AUTO W/` the balance pushes a fresh line on every stability event without a host trigger.
 
 ```
 host → balance       Esc x1_ CR LF
@@ -169,14 +169,15 @@ balance → host       <serial> CR LF
 host → balance       Esc s3_ CR LF                # cancel any leftover menu
 host → balance       Esc N   CR LF                # ambient: very unstable
 host → balance       Esc x0_ CR LF                # run internal cal
-host → balance       Esc kP  CR LF                # poll …
+host → balance       Esc kP  CR LF                # cal poll …
 balance → host       Stat Cal.Run. CR LF          # in progress
-host → balance       Esc kP  CR LF                # poll …
+host → balance       Esc kP  CR LF                # cal poll …
 balance → host       Stat Cal.End  CR LF          # done
-host → balance       Esc kP  CR LF                # poll …
+host → balance       Esc kP  CR LF                # cal poll …
 balance → host       G         0.0000 g CR LF     # post-cal zero
-host → balance       Esc kP  CR LF                # stable read
-balance → host       +    0.0000 g CR LF          # buffered stable value
+                                                  # — host stops sending —
+balance → host       +    0.0000 g CR LF          # AUTO W/ push: read_stable_weight
+balance → host       +    5.0000 g CR LF          # AUTO W/ push: next stream yield
 ```
 
 ---
@@ -185,7 +186,7 @@ balance → host       +    0.0000 g CR LF          # buffered stable value
 
 | Path | Purpose |
 |---|---|
-| [`main.py`](main.py) | End-to-end demo (auto-detect port → ID queries → cal → stable read → filtered stream). |
+| [`main.py`](main.py) | End-to-end demo (auto-detect port → ID queries → cal → passive stable read → jitter-filtered stream). |
 | [`src/entris_ii/precision_scale_controller.py`](src/entris_ii/precision_scale_controller.py) | The `PrecisionScaleController` class and the `WeightReading` NamedTuple. |
 | [`src/entris_ii/cli/diagnose.py`](src/entris_ii/cli/diagnose.py) | Read-only CLI: ID queries, never moves the balance. |
 | [`src/entris_ii/cli/measure.py`](src/entris_ii/cli/measure.py) | CLI: `cal`, `read`, `watch` subcommands. |

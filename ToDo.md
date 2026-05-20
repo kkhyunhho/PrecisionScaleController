@@ -957,4 +957,33 @@ docs-only scope of Task #11.
 - [x] Commit and push with `refactor(scale):` Conventional Commits
       prefix (614e230)
 - [x] Open PR per §15.2 (PR #15) — closes #14
-- [ ] GitHub issue update on merge (auto via `Closes #14` in PR #15)
+- [x] GitHub issue update on merge (auto via `Closes #14` in PR #15
+      — squash-merged 2026-05-20 as f738a61)
+
+---
+
+## Task #13 (2026-05-20): README sync to Approach B + jitter-only filter
+
+### Background
+After PR #15 merged (Task #12), three README spots still described
+the pre-refactor world and needed sync:
+1. "What This Project Does" bullet mentioned `jitter and
+   rising-guard filters` — rising-guard is now gone.
+2. "Putting it together" wire-protocol example showed an `Esc kP`
+   stable read at the end, which contradicts the Approach B passive
+   read flow described two sections earlier.
+3. "Package Layout" `main.py` descriptor still said
+   `filtered stream` — too generic now that jitter is the only
+   filter and the read is explicitly passive.
+
+Pure documentation task — no Python edits, no hardware impact.
+
+### Work items
+- [x] Append this ToDo entry
+- [x] Create GitHub issue (#16)
+- [x] Cut working branch `docs/readme-approach-b-sync` from main
+      (carry over the existing README diff)
+- [x] Commit and push with `docs(readme):` Conventional Commits
+      prefix (387a5dc)
+- [x] Open PR per §15.2 (PR #17 — closes #16)
+- [ ] GitHub issue update on merge (auto via `Closes #16` in PR #17)
