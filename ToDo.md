@@ -849,4 +849,4 @@ COM.OUTP into a single docs branch `docs/cal-menu-preconditions`
 - [x] Ruff check + format check on the modified Python file
 - [x] Commit and push with `docs(scale):` Conventional Commits prefix (687e37a)
 - [x] Open PR per §15.2 (closes #12) — PR #13
-- [ ] GitHub issue update on merge (auto via `Closes #12` in PR #13)
+- [x] GitHub issue update on merge (auto via `Closes #12` in PR #13) — #12 closed 2026-05-20, squash-merged as a06a843
