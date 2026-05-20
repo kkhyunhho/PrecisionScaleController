@@ -16,6 +16,17 @@ BCE manual §7.3.4 DEVICE/USB — SBI mode, 9600 baud, ODD parity, 8 data
 bits, 1 stop bit, no handshake. The stable-read and stream behaviours
 additionally require the printer menu (Code 3.1.1.x) set to "Manual
 with stability" so the balance buffers each print until stable.
+
+Menu-only calibration preconditions (cannot be set via SBI on this
+balance — operator must configure on the front panel before invoking
+``calibrate_internal_very_unstable``):
+
+* ``STAB.RNG = V.FAST`` — stability range, BCE manual §7.3.1 p.18.
+  Distinct from AMBIENT (which the controller drives via ``Esc N``).
+* ``COM.OUTP = IND.AFTR`` — manual output after stability, BCE manual
+  §7.3.6 p.22. Matches the polling-based Approach A read flow.
+  ``AUTO W/`` is intentionally not recommended because it pushes auto
+  data on stability and would conflict with ``Esc kP`` polling.
 """
 
 from __future__ import annotations
@@ -351,6 +362,22 @@ class PrecisionScaleController:
         poll_interval: float = CAL_POLL_INTERVAL_S,
     ) -> WeightReading:
         """Run internal calibration with ambient forced to very unstable.
+
+        Preconditions (menu-only; not reachable via SBI on this
+        balance — must be set on the front panel before this call):
+
+        * ``STAB.RNG = V.FAST`` (BCE manual §7.3.1, p.18) — fastest
+          stability filter, paired with the very-unstable ambient hint
+          this method forces via ``Esc N``. STAB.RNG is distinct from
+          AMBIENT (which is SBI-settable via ``Esc K/L/M/N``); the SBI
+          command tables in the Technical Note p.4 list no command
+          for STAB.RNG.
+        * ``COM.OUTP = IND.AFTR`` (BCE manual §7.3.6, p.22) — manual
+          output after stability, required by the polling-based
+          Approach A flow. ``AUTO W/`` would push auto data on
+          stability and conflict with ``Esc kP`` polling, so it is
+          intentionally not the recommended value despite being the
+          most superficially similar menu option.
 
         Sequence:
             1. ``Esc s3_`` (CANCEL) clears any leftover menu state.

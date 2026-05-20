@@ -778,3 +778,75 @@ References:
       `CAL_TIMEOUT_S` commit
 - [ ] Push and open PR per §15.2 (closes #10)
 - [ ] GitHub issue update on merge
+
+---
+
+## Task #11 (2026-05-20): Document menu-only calibration preconditions (STAB.RNG, COM.OUTP)
+
+### Background
+User asked whether `STAB.RNG=V.FAST` and `COM.OUTP=AUTO W/` can be set
+via SBI as part of `calibrate_internal_very_unstable`. Research against
+the Sartorius reference material confirmed both are **menu-only** on
+the Entris-II BCE224I — there is no SBI command for either parameter:
+
+- [`entris-ii-technical-note-en-sartorius.pdf`](entris-ii-technical-note-en-sartorius.pdf)
+  p.4 SBI command tables list no command for STAB.RNG or COM.OUTP.
+- [`manual-entris-bce-precisionbalances-wbc6001bo-pdf-62843--data.pdf`](manual-entris-bce-precisionbalances-wbc6001bo-pdf-62843--data.pdf)
+  p.18 §7.3.1 (STAB.RNG) and p.22 §7.3.6 (COM.OUTP) define both as
+  front-panel menu items only.
+
+Since automation is impossible, document the requirement as a
+hardware precondition in code docstrings, the README, and
+LearnedPatterns. Decision (user 2026-05-20): merge both STAB.RNG and
+COM.OUTP into a single docs branch `docs/cal-menu-preconditions`
+(Option A) rather than splitting them.
+
+### Design decisions (user 2026-05-20)
+- Branch base: `docs/cal-menu-preconditions` cut from `main`.
+- Recommended values:
+  - `STAB.RNG = V.FAST` — fastest stability filter for the
+    very-unstable ambient mode forced by `Esc N` during calibration.
+  - `COM.OUTP = IND.AFTR` (manual after stability) — matches the
+    current "Approach A" controller flow. Note in the docs that
+    `AUTO W/` would push auto data on stability and would conflict
+    with the polling-based Approach A, so it is intentionally not
+    recommended despite the user's original question being about
+    that value.
+- AMBIENT is intentionally not added to the precondition list: it
+  is SBI-settable (`Esc K/L/M/N`) and already driven by
+  `calibrate_internal_very_unstable`, so operators do not need to
+  pre-set it.
+- LearnedPatterns gets two entries (§Q5 STAB.RNG and §Q6 COM.OUTP)
+  rather than one combined entry, so each menu parameter is
+  individually grep-able and traces back to a specific manual page.
+
+### Work items
+- [x] Append this ToDo entry
+- [x] Create GitHub issue (#12)
+- [x] Cut working branch `docs/cal-menu-preconditions` from main
+- [x] Update `src/entris_ii/precision_scale_controller.py`:
+      1) module docstring — extend the "Hardware assumptions"
+         paragraph to list the two menu-only preconditions
+         (STAB.RNG=V.FAST, COM.OUTP=IND.AFTR);
+      2) `calibrate_internal_very_unstable` docstring — add an
+         explicit "Preconditions" section that calls out the two
+         menu settings and explains they cannot be set via SBI.
+- [x] Update `README.md`:
+      1) Quick Start step 1 — extend the comment block to mention
+         pre-setting STAB.RNG=V.FAST in addition to the existing
+         "Manual with stability" guidance;
+      2) add a new subsection near "Manual with stability" titled
+         "Menu-only calibration preconditions" covering the
+         AMBIENT-vs-STAB.RNG distinction, the COM.OUTP value menu,
+         the SBI-unsupported fact, and the front-panel menu paths.
+- [x] Append `LearnedPatterns.md` §Q5 entry — "STAB.RNG is
+      menu-only on the Entris-II; do not confuse with AMBIENT
+      (Esc K/L/M/N)" using the Problem / Cause / Fix / Rule format.
+- [x] Append `LearnedPatterns.md` §Q6 entry — "COM.OUTP (auto vs
+      manual print, with/without stability) is menu-only; SBI only
+      exposes the per-shot trigger via `Esc P` / `Esc kP`" using
+      the Problem / Cause / Fix / Rule format.
+- [x] Ruff check + format check on the modified Python file
+- [x] Commit and push with `docs(scale):` Conventional Commits prefix (687e37a)
+- [x] Open PR per §15.2 (closes #12) — PR #13
+- [ ] GitHub issue update on merge (auto via `Closes #12` in PR #13)

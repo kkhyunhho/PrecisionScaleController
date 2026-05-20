@@ -2,8 +2,8 @@
 
 > Patterns extracted from `ToDo.md` Completed items. Consult the relevant sections before drafting new ToDo entries. Append new patterns after each task completes (see CLAUDE.md §9 Learned Patterns Reference).
 >
-> Last updated: 2026-05-19
-> Total patterns: 17
+> Last updated: 2026-05-20
+> Total patterns: 19
 >
 > Provenance format: `(from ToDo#N)` where N is the 1-based index of the top-level `##` section in `ToDo.md` at the time of extraction.
 
@@ -81,6 +81,20 @@
 - **Cause**: The BCE224I sometimes emits the 16-char ID-coded form `<ID-label> <signed-value>` without a unit suffix even after `Cal.End` — not only as a brief drift line during internal calibration (already covered by Q3) but also intermittently during normal Approach-A stable reads. The original `_WEIGHT_RE` only matched `<value> <unit>`, so any unit-less line raised `ValueError` and propagated up through `read_stable_weight` into the generator.
 - **Fix**: Added a `_WEIGHT_RE_ID_NO_UNIT` fallback regex (`<id-label> <signed-numeric>`, unit defaults to `""`) and a `_STATUS_PREFIX_RE` so unstable/overload/underload markers (`Stat` / `H` / `High` / `L` / `Low`) still raise `ValueError` even when followed by a numeric placeholder. `stream_stable_weights` additionally catches `ValueError` and logs the skip at debug level so a transient non-numeric line never kills the loop.
 - **Rule**: Always accept the unit-less ID-coded SBI shape as a valid weight reading (with `unit=""`), and always make long-running SBI streams tolerant of transient `ValueError` from the parser. Never let status-prefixed lines (`Stat`, `H`, `L`) slip through the no-unit fallback. (from ToDo#28)
+
+### Q5. Sartorius STAB.RNG is menu-only — distinct from AMBIENT (Esc K/L/M/N)
+
+- **Problem**: User requested code that also sets `STAB.RNG = V.FAST` whenever `calibrate_internal_very_unstable` runs, expecting it to be SBI-settable alongside the AMBIENT hint that the method already emits via `Esc N`.
+- **Cause**: The Entris-II Technical Note p.4 SBI command tables list no Format-1 or Format-2 command for `STAB.RNG`. The BCE manual §7.3.1 p.18 defines STAB.RNG as a front-panel menu item only (values `V.ACC.` / `ACC.` / `FAST` / `V.FAST`). It is visually adjacent to AMBIENT in the menu and they read like the same parameter, but only AMBIENT has SBI commands `Esc K` (V.STABLE) / `Esc L` (STABLE) / `Esc M` (UNSTABL.) / `Esc N` (V.UNSTBL.).
+- **Fix**: Cannot be automated. Documented as a hardware precondition in the module docstring, the `calibrate_internal_very_unstable` docstring, and a new README "Menu-only calibration preconditions" subsection. Operators must set `STAB.RNG = V.FAST` on the front panel once at setup; the balance persists it across power cycles.
+- **Rule**: Always check the SBI command tables (Technical Note p.4) before promising automation of a Sartorius menu parameter. Never conflate STAB.RNG with AMBIENT — STAB.RNG is menu-only on the Entris-II BCE224I; only AMBIENT is SBI-controlled. (from ToDo#30)
+
+### Q6. Sartorius COM.OUTP is menu-only — Esc P / Esc kP only trigger, never configure
+
+- **Problem**: User asked whether `COM.OUTP = AUTO W/` (auto output after stability) could be enabled alongside the existing calibration sequence, by analogy with the AMBIENT hint.
+- **Cause**: The Entris-II Technical Note p.4 SBI command tables expose only the per-shot trigger commands `Esc P` ("Print, auto print; activate or block") and `Esc kP` ("Key PRINT to all interfaces") — neither selects between the four COM.OUTP menu values (`IND.NO` / `IND.AFTR` / `AUTO.W/O` / `AUTO W/`). The BCE manual §7.3.6 p.22 defines COM.OUTP as a front-panel menu item only. Technical Note p.5 "Automatic Data Output" ties auto-print mode to menu codes `3.1.1.4` / `3.1.1.5`, not to any SBI command.
+- **Fix**: Cannot be automated. Documented as a hardware precondition alongside STAB.RNG. The current Approach A polling flow requires `COM.OUTP = IND.AFTR` (manual after stability) on the front panel; `AUTO W/` is intentionally not recommended because it would push auto data on stability and conflict with `Esc kP` polling.
+- **Rule**: Always treat the COM.OUTP value (manual vs. auto, with vs. without stability) as a front-panel decision, not an SBI-runtime decision. `Esc P` / `Esc kP` only trigger the *already-configured* output mode — they never select which mode applies. (from ToDo#30)
 
 ---
 

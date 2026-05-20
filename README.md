@@ -23,10 +23,14 @@ For an end-to-end demo, run [`main.py`](main.py). For flag-driven access there i
 ## Quick Start
 
 ```bash
-# 1. Plug the balance into a USB-C port. Make sure the printer menu
-#    is set to "Manual with stability" (Code 3.1.1.x) so that Esc kP
-#    returns only fully-stable values. The pan must be empty for the
-#    calibration step.
+# 1. Plug the balance into a USB-C port. Make sure the front-panel
+#    menu is configured for SBI use:
+#      - STAB.RNG = V.FAST   (BCE manual §7.3.1) — calibration only
+#      - COM.OUTP = IND.AFTR (BCE manual §7.3.6) — "Manual with
+#                              stability"; equivalent to Code 3.1.1.x
+#    Both parameters are menu-only — see "Menu-only calibration
+#    preconditions" below for the reason. The pan must be empty for
+#    the calibration step.
 
 # 2. Confirm the device is enumerated.
 ls /dev/ttyACM*           # expect e.g. /dev/ttyACM0
@@ -140,6 +144,19 @@ Some response lines are not weight values. The parser raises `ValueError` so the
 `read_stable_weight` and `stream_stable_weights` rely on the balance's printer menu (Code 3.1.1.x) being set to **"Manual with stability"** rather than the factory default `IND.NO`. In this mode the balance buffers each `Esc kP` request internally until the reading stabilizes and only then emits the value. The controller is therefore stateless w.r.t. stability — every read is a blocking call that returns one settled value.
 
 If the menu is not set this way, you will see `Stat`-prefixed responses and `read_stable_weight` will raise `ValueError`. Either change the menu or use the cal polling loop's pattern (catch the error and retry).
+
+### Menu-only calibration preconditions
+
+Two further front-panel menu items affect calibration behaviour but are **not reachable via SBI** on the Entris-II BCE224I — the SBI command tables in the [Technical Note](entris-ii-technical-note-en-sartorius.pdf) p.4 list no command for either. They must be configured on the balance before invoking `calibrate_internal_very_unstable`.
+
+| Menu item | Manual ref | Recommended value | Why |
+|---|---|---|---|
+| `SETUP → BALANCE → STAB.RNG` | [BCE manual §7.3.1, p.18](manual-entris-bce-precisionbalances-wbc6001bo-pdf-62843--data.pdf) | `V.FAST` | Fastest stability filter, paired with the very-unstable ambient hint that the controller forces via `Esc N`. Distinct from AMBIENT (which **is** SBI-settable via `Esc K/L/M/N`) — same family of "how strictly should the balance treat the reading as settled?", different menu item. |
+| `SETUP → DATA.OUT. → COM. SBI → COM.OUTP` | [BCE manual §7.3.6, p.22](manual-entris-bce-precisionbalances-wbc6001bo-pdf-62843--data.pdf) | `IND.AFTR` | Manual output **after** stability — the Approach A value. Available values are `IND.NO` (factory default, no stability gating), `IND.AFTR`, `AUTO.W/O` (automatic, no stability), `AUTO W/` (automatic on stability). |
+
+`AUTO W/` is intentionally **not** recommended even though it sounds like the closest match to what calibration wants: it would push auto data on stability and conflict with the controller's `Esc kP` polling. If you need a true auto-print workflow, the controller would have to switch from polling to a passive read loop — out of scope for the current Approach A.
+
+Operators changing these menus should do so once at setup time; the balance persists them across power cycles.
 
 ### Putting it together
 
