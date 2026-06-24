@@ -42,14 +42,16 @@ The harness `env` block in [`.claude/settings.json`](.claude/settings.json):
 
 ## Commands
 
-```bash
-python3 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
+All projects share one conda env, **`elec`** (Python 3.12), where every
+driver package is `pip install -e`'d. New terminals activate it.
 
-.venv/bin/ruff check src claude_test main.py        # lint (80-col)
-.venv/bin/ruff format --check src claude_test main.py
-.venv/bin/mypy                                       # strict types on src/entris_ii
-.venv/bin/entris-ii-diagnose                         # read-only identity/weight probe
+```bash
+conda activate elec          # one-time: pip install -e ".[dev]"
+
+ruff check src claude_test main.py        # lint (80-col)
+ruff format --check src claude_test main.py
+mypy                                       # strict types on src/entris_ii
+entris-ii-diagnose                         # read-only identity/weight probe
 ```
 
 ## Hardware / domain notes
