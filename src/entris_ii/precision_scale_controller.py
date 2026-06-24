@@ -65,6 +65,73 @@ class WeightReading(NamedTuple):
     raw: str
 
 
+def _resolve_port(spec: str | None) -> str:
+    """Resolve a port spec to a concrete device path.
+
+    ``spec`` is one of:
+
+    - ``None`` — auto-detect the balance by USB identity (VID:PID
+      ``24BC:0010``). The Picus pipette shares the Sartorius VID
+      (``24BC:2202``), so the balance is matched by **full VID:PID**,
+      never the vendor ID alone.
+    - an explicit device path (contains ``/`` or starts with ``COM``);
+    - a ``"VID:PID"`` or ``"VID:PID:SERIAL"`` hex string matched against
+      attached serial ports at runtime.
+
+    Matching by USB identity keeps the balance addressable after a
+    ``/dev/ttyACM*`` renumber or a move to a different USB socket.
+
+    Args:
+        spec: Port value (``None`` to auto-detect, a device path, or
+            ``"VID:PID"`` / ``"VID:PID:SERIAL"``).
+
+    Returns:
+        The concrete device path to hand to ``serial.Serial``.
+
+    Raises:
+        ValueError: ``spec`` is neither a path nor valid USB-identity hex.
+        RuntimeError: the spec matched zero or several devices.
+    """
+    if spec is not None and ("/" in spec or spec.upper().startswith("COM")):
+        return spec
+    serial_number: str | None = None
+    if spec is None:
+        vid = PrecisionScaleController.SARTORIUS_VID
+        pid = PrecisionScaleController.BALANCE_PID
+        label = "Entris-II balance (24BC:0010)"
+    else:
+        parts = spec.split(":")
+        try:
+            if len(parts) == 2:
+                vid, pid = int(parts[0], 16), int(parts[1], 16)
+            elif len(parts) == 3:
+                vid, pid = int(parts[0], 16), int(parts[1], 16)
+                serial_number = parts[2]
+            else:
+                raise ValueError
+        except ValueError as exc:
+            raise ValueError(
+                f"port {spec!r} is neither a device path nor "
+                "VID:PID[:SERIAL] hex"
+            ) from exc
+        label = spec
+    matches = [
+        info.device
+        for info in serial.tools.list_ports.comports()
+        if info.vid == vid
+        and info.pid == pid
+        and (serial_number is None or info.serial_number == serial_number)
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    if not matches:
+        raise RuntimeError(f"no serial device matches {label}")
+    raise RuntimeError(
+        f"{label} matches several devices {matches} — add the USB serial "
+        "(VID:PID:SERIAL) or use an explicit device path"
+    )
+
+
 class PrecisionScaleController:
     """SBI controller for the Sartorius Entris-II precision balance.
 
@@ -81,8 +148,10 @@ class PrecisionScaleController:
     surface (zero, tare, print, calibrate) lands in follow-up tasks.
     """
 
-    # Sartorius USB vendor ID, used by ``find_port`` auto-detection.
+    # Sartorius USB vendor ID. The Picus pipette shares it (24BC:2202),
+    # so the balance is identified by full VID:PID, not the VID alone.
     SARTORIUS_VID: ClassVar[int] = 0x24BC
+    BALANCE_PID: ClassVar[int] = 0x0010
 
     # SBI framing bytes (Technical Note, "Format for Control Commands").
     ESC: ClassVar[bytes] = b"\x1b"
@@ -93,6 +162,12 @@ class PrecisionScaleController:
     CMD_AMBIENT_VERY_UNSTABLE: ClassVar[bytes] = b"N"
     CMD_PRINT_KEY: ClassVar[bytes] = b"kP"
     CMD_CANCEL: ClassVar[bytes] = b"s3_"
+
+    # Format-1 zero/tare command (Technical Note, commands table:
+    # "T  Zero/Tara command"). Combined zero+tare — with the current
+    # pan load (e.g. an empty vial) treated as the new zero, later
+    # stable reads report only the net weight added afterwards.
+    CMD_TARE: ClassVar[bytes] = b"T"
 
     # Format-2 command characters (Technical Note, commands table).
     CMD_INTERNAL_CAL: ClassVar[bytes] = b"x0_"
@@ -167,22 +242,23 @@ class PrecisionScaleController:
 
     @classmethod
     def find_port(cls) -> str | None:
-        """Return the first detected Sartorius port path, or None.
+        """Return the detected Entris-II balance port path, or None.
 
-        Scans available serial ports for a USB CDC ACM device whose
-        vendor ID matches ``SARTORIUS_VID``. Used by demo and
-        smoke-test scripts to avoid hard-coded device paths; the
-        controller itself still requires an explicit ``port`` argument
-        on construction.
+        Scans attached serial ports for the balance's full USB identity
+        (``SARTORIUS_VID``:``BALANCE_PID`` = ``24BC:0010``). The Picus
+        pipette shares the Sartorius VID (``24BC:2202``), so matching on
+        the vendor ID alone would grab the wrong device — the PID is
+        required. Equivalent to ``_resolve_port(None)`` but returns None
+        instead of raising when nothing matches.
         """
         for info in serial.tools.list_ports.comports():
-            if info.vid == cls.SARTORIUS_VID:
+            if info.vid == cls.SARTORIUS_VID and info.pid == cls.BALANCE_PID:
                 return info.device
         return None
 
     def __init__(
         self,
-        port: str,
+        port: str | None = None,
         baudrate: int = DEFAULT_BAUDRATE,
         parity: str = DEFAULT_PARITY,
         bytesize: int = DEFAULT_BYTESIZE,
@@ -192,8 +268,12 @@ class PrecisionScaleController:
         """Configure but do not yet open the serial connection.
 
         Args:
-            port: Device path of the USB-C virtual COM port
-                (typically ``/dev/ttyACM0`` on Linux).
+            port: USB-C virtual COM port spec, resolved at ``open()`` by
+                ``_resolve_port``. Accepts ``None`` (auto-detect the
+                balance by USB identity ``24BC:0010``), an explicit
+                device path (e.g. ``/dev/ttyACM0``), or a
+                ``"VID:PID"`` / ``"VID:PID:SERIAL"`` hex string. Resolving
+                by USB identity survives a ``/dev/ttyACM*`` renumber.
             baudrate: SBI baud rate; factory default 9600.
             parity: Parity bit; factory default ``PARITY_ODD``.
             bytesize: Data bits; factory default 8.
@@ -226,7 +306,7 @@ class PrecisionScaleController:
         if self._serial is not None and self._serial.is_open:
             return
         self._serial = serial.Serial(
-            port=self.port,
+            port=_resolve_port(self.port),
             baudrate=self.baudrate,
             parity=self.parity,
             bytesize=self.bytesize,
@@ -357,6 +437,78 @@ class PrecisionScaleController:
         """Return the balance serial number via SBI ``Esc x2_``."""
         self._send_command(self.CMD_SERIAL_NUMBER)
         return self._read_response()
+
+    def tare(self) -> None:
+        """Zero/tare the balance via SBI ``Esc T``.
+
+        Sends the combined zero/tare command (Technical Note, commands
+        table). The current pan load — typically an empty tare vial — is
+        adopted as the new zero, so subsequent stable reads report only
+        the net weight added after this call.
+
+        The command itself returns no reply. Callers that need to verify
+        the post-tare baseline should follow with
+        :meth:`read_stable_weight`; under ``COM.OUTP = AUTO W/`` the
+        balance auto-pushes the settled zero once stability is reached.
+
+        Raises:
+            RuntimeError: If the serial port is not open.
+        """
+        self._send_command(self.CMD_TARE)
+
+    def flush_pending_reads(self) -> None:
+        """Discard buffered auto-push lines that have not been read yet.
+
+        Under ``COM.OUTP = AUTO W/`` the balance emits a new value on
+        every stability event, so a near-duplicate reading can sit in
+        the OS receive buffer between operations. Call this right before
+        a deliberate load change (e.g. a syringe-pump dispense) so the
+        next :meth:`read_stable_weight` returns the freshly settled value
+        instead of a stale pre-change one.
+
+        Raises:
+            RuntimeError: If the serial port is not open.
+        """
+        if self._serial is None or not self._serial.is_open:
+            raise RuntimeError("Serial port is not open")
+        self._serial.reset_input_buffer()
+
+    # Ambient-condition filter levels, SBI ``Esc K/L/M/N`` (Technical Note,
+    # commands table). Looser ("unstable") settings apply heavier filtering
+    # so the balance declares stability more readily in a noisy environment.
+    AMBIENT_LEVELS: ClassVar[dict[str, bytes]] = {
+        "very_stable": b"K",
+        "stable": b"L",
+        "unstable": b"M",
+        "very_unstable": b"N",
+    }
+
+    def set_ambient(self, level: str) -> None:
+        """Set the ambient-condition filter via SBI ``Esc K/L/M/N``.
+
+        ``level`` is one of ``"very_stable"`` (K), ``"stable"`` (L),
+        ``"unstable"`` (M), ``"very_unstable"`` (N). The looser settings
+        apply heavier filtering, so the balance declares stability even
+        when the pan is disturbed by drift, vibration, or draft — useful
+        when :meth:`read_stable_weight` keeps timing out because the
+        balance only emits ``Stat`` (unstable) lines. This is the SBI
+        complement to the menu-only ``STAB.RNG`` stability range.
+
+        Args:
+            level: One of the keys of :attr:`AMBIENT_LEVELS`.
+
+        Raises:
+            ValueError: If ``level`` is not a known ambient level.
+            RuntimeError: If the serial port is not open.
+        """
+        try:
+            payload = self.AMBIENT_LEVELS[level]
+        except KeyError:
+            raise ValueError(
+                f"unknown ambient level {level!r}; expected one of "
+                f"{sorted(self.AMBIENT_LEVELS)}"
+            ) from None
+        self._send_command(payload)
 
     def calibrate_internal_very_unstable(
         self,

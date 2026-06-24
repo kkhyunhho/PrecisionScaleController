@@ -270,7 +270,7 @@ This repository uses [Claude Code hooks](https://code.claude.com/docs/en/hooks) 
 | [`post-write-debug-remind.sh`](.claude/hooks/post-write-debug-remind.sh) | PostToolUse (Write/Edit) | §2 Debug File Management | Reminds to update `claude_test/README.md` when adding files to `claude_test/` |
 | Stop prompt hook | Stop | §3 Task Management | Verifies that `ToDo.md` has an entry and a GitHub issue exists before Claude finishes |
 
-Configuration lives in [`.claude/settings.json`](.claude/settings.json), and the linter is configured by [`ruff.toml`](ruff.toml) (80-column, 4-space, rules `E/F/W/I/N`).
+Configuration lives in [`.claude/settings.json`](.claude/settings.json), and the linter is configured in [`pyproject.toml`](pyproject.toml) under `[tool.ruff]` (80-column, 4-space, rules `E/F/W/I/N`).
 
 **Not enforced via hooks** (kept in `CLAUDE.md` as instructions): comment quality, English-only rule, magic-number/hardcoding rules, and command input validation — these require human judgment.
 

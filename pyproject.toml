@@ -1,0 +1,78 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "entris_ii"
+version = "0.1.0"
+description = "Python controller for the Sartorius Entris-II precision balance (SBI protocol over USB-C CDC-ACM)."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [{ name = "kkhyunhho" }]
+keywords = ["balance", "scale", "sartorius", "entris-ii", "sbi", "serial"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: System :: Hardware :: Hardware Drivers",
+]
+dependencies = [
+    "pyserial>=3.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "types-pyserial>=3.5",
+]
+server = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.scripts]
+entris-ii-diagnose = "entris_ii.cli.diagnose:main"
+entris-ii-measure = "entris_ii.cli.measure:main"
+
+[project.urls]
+Homepage = "https://github.com/kkhyunhho/PrecisionScaleController"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/entris_ii"]
+
+[tool.ruff]
+line-length = 80
+indent-width = 4
+target-version = "py312"
+src = ["src", "tests", "claude_test"]
+
+[tool.ruff.format]
+indent-style = "space"
+quote-style = "double"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src/entris_ii"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
