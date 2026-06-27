@@ -8,12 +8,12 @@ For the big picture and all shared conventions — the "one cell, many
 devices" architecture, code style, repo skeleton, codename naming, the
 driver API contract, the FastAPI `/v1` server standard, the hybrid
 integration model, testing strategy, and task/commit rules — see
-**CommonClaude** (`kkhyunhho/CommonClaude`), the single source of truth.
+**SDLClaude** (`kkhyunhho/SDLClaude`), the single source of truth.
 
 This file holds only what is specific to **PrecisionScaleController**: the
 Sartorius Entris-II balance, its SBI protocol and front-panel
 prerequisites, and this project's commands. Where this file is silent,
-CommonClaude governs.
+SDLClaude governs.
 
 This project is a **device driver** for the codename **`entris_ii`**:
 package [src/entris_ii/](src/entris_ii/), class `PrecisionScaleController`,
@@ -24,7 +24,7 @@ console scripts `entris-ii-diagnose` / `entris-ii-measure`.
 The driver lives at [src/entris_ii/](src/entris_ii/) as a single
 `PrecisionScaleController` class, modelled on `sy01b`. Read/tare/calibrate
 and identity queries over the Entris-II USB-C virtual COM port are shipped;
-bench scripts live in [claude_test/](claude_test/). Per the CommonClaude v2
+bench scripts live in [claude_test/](claude_test/). Per the SDLClaude v2
 standard this project still needs a `server/` FastAPI `/v1` bridge and a
 `tests/` suite (tracked as Phase 2 cleanup).
 

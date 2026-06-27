@@ -14,7 +14,7 @@
 ### R1. Stop hook halts tasks missing ToDo entry or GitHub issue
 
 - **Problem**: Session ended with the Stop hook blocking because the user request had been fulfilled but no `ToDo.md` entry or GitHub issue existed for it.
-- **Cause**: The CommonClaude Stop hook enforces a ToDo entry and a GitHub issue for every user-requested task, including read-only or informational ones; the check runs regardless of surface task type.
+- **Cause**: The SDLClaude Stop hook enforces a ToDo entry and a GitHub issue for every user-requested task, including read-only or informational ones; the check runs regardless of surface task type.
 - **Fix**: Register a ToDo entry and a GitHub issue before responding to informational asks, not only before "code" work.
 - **Rule**: Always create a ToDo entry and a GitHub issue for every user request, even read-only summaries or document reviews. (from ToDo#4, ToDo#5)
 
@@ -100,7 +100,7 @@
 
 ## §4. Workflow Lessons
 
-### W1. Informational tasks still require the full CommonClaude workflow
+### W1. Informational tasks still require the full SDLClaude workflow
 
 - **Lesson**: Read-and-summarize requests were initially treated as workflow-exempt and triggered a Stop hook block at the end of the session.
 - **Rule**: Always write a ToDo entry and open a GitHub issue for every user request, including summaries, code reviews, and exploratory reads. (from ToDo#4)

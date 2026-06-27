@@ -2,7 +2,7 @@
 
 **Sartorius Entris-II precision balance controller — with project-wide Claude Code conventions**
 
-This repository hosts the PrecisionScaleController project together with the rules and workflows every [Claude Code](https://claude.ai/code) session in it must follow. The canonical ruleset lives in [`CLAUDE.md`](CLAUDE.md) (no separate `CommonClaude.md` file).
+This repository hosts the PrecisionScaleController project together with the rules and workflows every [Claude Code](https://claude.ai/code) session in it must follow. The canonical ruleset lives in [`CLAUDE.md`](CLAUDE.md) (no separate `SDLClaude.md` file).
 
 ---
 
