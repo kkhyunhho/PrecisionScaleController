@@ -42,11 +42,11 @@ The harness `env` block in [`.claude/settings.json`](.claude/settings.json):
 
 ## Commands
 
-All projects share one conda env, **`elec`** (Python 3.12), where every
+All projects share one conda env, **`sdl`** (Python 3.12), where every
 driver package is `pip install -e`'d. New terminals activate it.
 
 ```bash
-conda activate elec          # one-time: pip install -e ".[dev]"
+conda activate sdl          # one-time: pip install -e ".[dev]"
 
 ruff check src claude_test main.py        # lint (80-col)
 ruff format --check src claude_test main.py
